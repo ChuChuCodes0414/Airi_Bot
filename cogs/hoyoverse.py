@@ -1,10 +1,7 @@
 import discord
 from discord.ext import commands, menus, tasks
 from discord import app_commands, ui
-from utils import methods
-from utils import errors
-from utils import classes
-from utils import hoyoversestore
+from utils import methods, errors,classes,hoyoversestore
 import datetime
 import genshin
 import os
@@ -19,6 +16,9 @@ from io import BytesIO
 from itertools import starmap
 from typing import Literal
 from aioenkanetworkcard import encbanner
+import aiohttp
+import json
+import urllib
 
 class Hoyoverse(commands.Cog):
     def __init__(self,client):
@@ -41,6 +41,9 @@ class Hoyoverse(commands.Cog):
         self.artifact_mapping = {}
         self.talent_mapping = {}
         self.claim_daily.start()
+
+        self.route = "https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog"
+
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -164,6 +167,13 @@ class Hoyoverse(commands.Cog):
         if authkey:
             return authkey
         raise errors.NotSetupError(message = "Authkey for this user is not setup!\nIf you are this user, try `/genshin authkey`.")
+
+    async def get_hauthkey(self,ctx,user):
+        raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.hauthkey":1})
+        authkey = methods.query(data = raw, search = ["hoyoverse","settings","hauthkey"])
+        if authkey:
+            return authkey
+        raise errors.NotSetupError(message = "Authkey for this user is not setup!\nIf you are this user, try `/honkaistarrail authkey`.")
     
     async def privacy_check(self,ctx,user):
         if ctx.author == user:
@@ -184,6 +194,13 @@ class Hoyoverse(commands.Cog):
             raise errors.NotSetupError(message = "The Genshin UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
         return uid
 
+    async def pull_huid(self,user):
+        raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.huid"})
+        uid = methods.query(data = raw, search = ["hoyoverse","settings","huid"])
+        if not uid:
+            raise errors.NotSetupError(message = "The Honkai Impact 3rd UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
+        return uid
+
     @commands.hybrid_group(id = "500")
     async def hoyolab(self,ctx):
         if ctx.invoked_subcommand is None:
@@ -199,6 +216,23 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
+    @hoyolab.command(id = "540",help = "View information about this group!")
+    async def information(self,ctx):
+        embed = discord.Embed(title = "Hoyoverse Group Information",description = "All you need to know about the commands!",color = discord.Color.random())
+        embed.add_field(name = "Cookie Information",value = "Your cookies are needed as authentication to access any related data, such as your realtimenotes or character information. This information is stored securely, and cannot be used to do any serious damage to your account. However, there is always some risk is giving this information out to the bot, so plan accordingly.",inline = False)
+        embed.add_field(name = "Authkey Information",value = "Your authkey is needed for any transaction information (ex. topups) as well as wishing and warp data. This, unlike cookies, has no risk to yourself when sharing the link.",inline = False)
+        embed.add_field(name = "Data Removal",value = "At any time, you can remove all of your data from the bot with `/hoyolab remove`.",inline = False)
+        embed.add_field(name = "Terms and Conditions",value = "As a user, you agree to not continually request uneeded data. Once hitting the rate limit, you will not continue to run commands.\nYou accept that the development team of the bot has no liability over your account information or use.\nSome assets within this section of the bot are owned solely by Cognosphere PTE. LTD. ",inline = False)
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+        
+    @hoyolab.command(id = "541",help = "Remove all of your hoyoverse data from the bot.")
+    async def remove(self,ctx):
+        self.client.db.user_data.update_one({"_id":ctx.author.id},{"$unset":{"hoyoverse":""}})
+        embed = discord.Embed(title = "Removed All Hoyoverse Data",description = "All of your stored Hoyoverse data has been removed successfully.",color = discord.Color.green())
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+
     @hoyolab.command(id = "502", help = "Edit any settings related to the Hoyoverse group.")
     async def settings(self,ctx):
         view = SettingsView(ctx)
@@ -981,7 +1015,7 @@ class Hoyoverse(commands.Cog):
         if not data: return
         async with ctx.typing():
             client = genshin.Client(data)
-            uid = await client._get_uid(genshin.Game.HONKAI)
+            uid = await self.pull_huid(member)
             data = await client.get_honkai_battlesuits(uid)
             view = BattlesuitView(ctx,data)
             embed = discord.Embed(title = f"Battlesuits for {member}",description = f"{len(data)} Battlesuits Owned",color = discord.Color.random())
@@ -1000,7 +1034,7 @@ class Hoyoverse(commands.Cog):
         if not data: return
         async with ctx.typing():
             client = genshin.Client(data)
-            uid = await client._get_uid(genshin.Game.HONKAI)
+            uid = await self.pull_huid(member)
             data = await client.get_honkai_old_abyss(uid)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no old abyss data for past cycles!")
@@ -1021,7 +1055,7 @@ class Hoyoverse(commands.Cog):
         if not data: return
         async with ctx.typing():
             client = genshin.Client(data)
-            uid = await client._get_uid(genshin.Game.HONKAI)
+            uid = await self.pull_huid(member)
             data = await client.get_honkai_memorial_arena(uid)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no Memorial Arena data for past cycles!")
@@ -1042,7 +1076,7 @@ class Hoyoverse(commands.Cog):
         if not data: return
         async with ctx.typing():
             client = genshin.Client(data)
-            uid = await client._get_uid(genshin.Game.HONKAI)
+            uid = await self.pull_huid(member)
             data = await client.get_honkai_elysian_realm(uid)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no Elysian Realm data for this cycle!")
@@ -1064,7 +1098,7 @@ class Hoyoverse(commands.Cog):
         async with ctx.typing():
             client = genshin.Client(data)
             uid = await client._get_uid(genshin.Game.HONKAI)
-            data = await client.get_honkai_superstring_abyss(uid)
+            data = await self.pull_huid(member)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no Superstring Abyss data for past cycles!")
             embed = discord.Embed(title = f"Superstring Abyss for {member}",description = f"{len(data)} reports found.",color = discord.Color.random())
@@ -1083,7 +1117,7 @@ class Hoyoverse(commands.Cog):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaistarrail daily` to get a list of commands.")
     
-    @honkaistarrail.command(id = "511",name = "claim",help = "Claim the daily reward for the day.")
+    @honkaistarrail.command(id = "536",name = "claim",help = "Claim the daily reward for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to claim the daily for.")
     async def honkaistarclaim(self,ctx,member:discord.Member = None):
@@ -1100,7 +1134,7 @@ class Hoyoverse(commands.Cog):
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(id = "512",name = "history",help = "Last 30 daily reward history information.")
+    @honkaistarrail.command(id = "537",name = "history",help = "Last 30 daily reward history information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",limit = "The amount of days to pull up inforamtion for.")
     async def honkaistarhistory(self,ctx,limit: commands.Range[int,0] = None,member:discord.Member = None):
@@ -1119,7 +1153,7 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @honkaistarrail.command(id = "513",name = "redeem",help = "Redeem a code for yourself or a friend.")
+    @honkaistarrail.command(id = "538",name = "redeem",help = "Redeem a code for yourself or a friend.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def honkaistarredeem(self,ctx,code:str,member:discord.Member = None):
@@ -1136,9 +1170,10 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(id = "509",name = "massredeem",help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
+    @honkaistarrail.command(id = "539",name = "massredeem",help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
     @bot_mod_check()
     @commands.cooldown(1,10,commands.BucketType.user)
+    @app_commands.describe(code = "The code to redeem.")
     async def honkaistarmassredeem(self,ctx,code:str):
         async with ctx.typing():
             accounts = self.client.db.user_data.find({"hoyoverse.settings.hsautoredeem":True},{"hoyoverse":1})
@@ -1166,6 +1201,108 @@ class Hoyoverse(commands.Cog):
             message = await channel.send(embed = embed)
             await message.publish()
         await ctx.reply(embed = discord.Embed(description = f"Successfully auto redeemed `{code}`!",color = discord.Color.green()))
+    
+    @honkaistarrail.command(id = "543",name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")
+    async def hsauthkey(self,ctx):
+        embed = discord.Embed(title = "Honkai: Star Rail Authkey Linking",description = "This is required to make any warp commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
+        embed.add_field(name = "Getting Authkey",value = "1. Open up warp history in game.\n2. Open Windows Powershell from your start menu.\n3. Copy the script from the button 'Get Script', and paste it in the Powershell window.\n4. Click the button below, and paste the link into the dialogue box.",inline = False)
+        embed.set_image(url = "https://cdn.discordapp.com/attachments/870127759526101032/1081033414486020136/ezgif.com-video-to-gif.gif")
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        view = HSAuthkeyView(ctx)
+        message = await ctx.reply(embed = embed,view = view)
+        view.message = message
+
+    @honkaistarrail.command(id = "544",help = "Simple embeds that can show you your warping history.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to see warp history for.")
+    async def warps(self,ctx,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.auth_privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their warp/transaction data set to private!")
+        authkey = await self.get_hauthkey(ctx,member) 
+        if not authkey: return
+
+        async with ctx.typing():
+            params = urllib.parse.parse_qs(urllib.parse.urlparse(authkey).query)
+            params = {key:data[0] for key,data in params.items()}
+            params["gacha_id"] = "dbebc8d9fbb0d4ffa067423482ce505bc5ea"
+            params["default_gacha_type"] = 11
+            params["plat_type"] = "pc"
+            params["region"] = "os"
+            params["page"] = 1
+            params["size"] = 20
+            params["gacha_type"] = 11
+            params["end_id"] = 0
+            gacha_pulls = []
+            while True:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog",params = params) as resp:
+                        if resp and resp.status == 200:
+                            resp = await resp.json()
+                        else:
+                            print(f"Error! {resp.status}")
+                            break
+                        if len(resp.get('data',{}).get('list',[])) == 0:
+                            break
+                        gacha_pulls.extend(resp.get('data',{}).get('list',[]))
+
+                        params["page"] += 1
+                        params["end_id"] = resp.get('data', {}).get('list', [])[-1].get('id')
+            params["default_gacha_type"] = 12
+            params["gacha_type"] = 12
+            params["gacha_id"] = "ceef3b655e094f3f603c57e581c98dad09b3"
+            params["end_id"] = 0
+            params["page"] = 1
+            while True:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog",params = params) as resp:
+                        if resp and resp.status == 200:
+                            resp = await resp.json()
+                        else:
+                            print(f"Error! {resp.status}")
+                            break
+                        if len(resp.get('data',{}).get('list',[])) == 0:
+                            break
+                        gacha_pulls.extend(resp.get('data',{}).get('list',[]))
+
+                        params["page"] += 1
+                        params["end_id"] = resp.get('data', {}).get('list', [])[-1].get('id')
+            params["default_gacha_type"] = 1
+            params["gacha_type"] = 1
+            params["gacha_id"] = "ad9815cdf2308104c377aac42c7f0cdd8d"
+            params["end_id"] = 0
+            params["page"] = 1
+            while True:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog",params = params) as resp:
+                        if resp and resp.status == 200:
+                            resp = await resp.json()
+                        else:
+                            print(f"Error! {resp.status}")
+                            break
+                        if len(resp.get('data',{}).get('list',[])) == 0:
+                            break
+                        gacha_pulls.extend(resp.get('data',{}).get('list',[]))
+
+                        params["page"] += 1
+                        params["end_id"] = resp.get('data', {}).get('list', [])[-1].get('id')
+                
+            stats = {"5":[],"4":[],"5Character":[],"5Light Cone":[],"4Character":[],"4Light Cone":[],"3":[],"11":[],"12":[],"1":[]}
+            for pull in gacha_pulls:
+                stats[str(pull["gacha_type"])].append(pull)
+                stats[str(pull["rank_type"])].append(pull)
+                if pull["rank_type"] != "3":
+                    stats[pull["rank_type"] + pull["item_type"]].append(pull)
+
+        embed = discord.Embed(title = f"Warp history for {member}",description = f"Looking at the past `{len(gacha_pulls)}` warps",color = discord.Color.random())
+        embed.add_field(name = "Total Statistics",value = f'Total Pulls: <:specialstarrailpass:1105682773001371808> {len(gacha_pulls)}\nStellar Jade Equivalent: <:stellarjade:1105682519711563846> {len(gacha_pulls)*160}\nAverage Pity: <:starrailpass:1105682774431629342> {int(len(gacha_pulls)/len(stats["5"])) if len(stats["5"]) > 0 else "None"}',inline = False)
+        embed.add_field(name = "By Rarity",value = f'5 🌟 Pulls: {len(stats["5Character"]) + len(stats["5Light Cone"])}\n<:replycont:1106010140425072650> Characters: {len(stats["5Character"])}\n<:reply:1106010100159750205> Light Cones: {len(stats["5Light Cone"])}\n4 🌟 Pulls: {len(stats["4Character"]) + len(stats["4Light Cone"])}\n<:replycont:1106010140425072650> Characters: {len(stats["4Character"])}\n<:reply:1106010100159750205> Light Cones: {len(stats["4Light Cone"])}\n3 ⭐ Pulls: {len(stats["3"])}')
+        embed.add_field(name = "By Banner",value = f'Standard Banner Pulls: <:starrailpass:1105682774431629342> {len(stats["1"])}\nLimited Character Banner Pulls: <:specialstarrailpass:1105682773001371808> {len(stats["11"])}\nLimited Light Cone Banner Pulls: <:specialstarrailpass:1105682773001371808> {len(stats["12"])}')
+        embed.add_field(name = "Disclaimer",value = "This data is limited to the past 6 months. Due to this, there may be inaccurate counting in warp total, pity counting, 50/50 counting, and other information.",inline = False)
+        embed.set_footer(text = "Use the dropdown below to sort by banner!")
+        view = WarpView(ctx,stats,member,embed)
+        message = await ctx.reply(embed = embed,view = view)
+        view.message = message
 
 class SettingsView(discord.ui.View):
     def __init__(self,ctx):
@@ -1180,6 +1317,7 @@ class SettingsView(discord.ui.View):
     async def generate_embed(self,data):
         data = data or {}
         uid = methods.query(data = data,search = ["hoyoverse","settings","uid"])
+        huid = methods.query(data = data,search = ["hoyoverse","settings","huid"])
         privacy = methods.query(data = data,search = ["hoyoverse","settings","privacy"])
         aprivacy = methods.query(data = data,search = ["hoyoverse","settings","aprivacy"])
         autoredeem = methods.query(data = data,search = ["hoyoverse","settings","autoredeem"])
@@ -1189,7 +1327,7 @@ class SettingsView(discord.ui.View):
         hsautoclaim = methods.query(data = data,search = ["hoyoverse","settings","hsautoclaim"])
         embed = discord.Embed(title = "Hoyoverse User Settings",description = "To setup cookies, use `/hoyolab link`\nTo setup authkey, use `/genshin authkey`",color = discord.Color.random())
         embed.add_field(name = "Genshin UID",value = str(uid))
-
+        embed.add_field(name = "Honkai Impact 3rd UID",value = str(huid))
         embed.add_field(name = "General Privacy",value = "Public" if privacy else "Private")
         embed.add_field(name = "Authkey Privacy",value = "Public" if aprivacy else "Private")
         embed.add_field(name = "Genshin Auto Code Redeem",value = "Enabled" if autoredeem else "Disabled")
@@ -1197,7 +1335,7 @@ class SettingsView(discord.ui.View):
         embed.add_field(name = "Honkai Impact 3rd Auto Daily Claim",value = "Enabled" if hautoclaim else "Disabled")
         embed.add_field(name = "Honkai: Star Rail Auto Code Redeem",value = "Enabled" if hsautoredeem else "Disabled")
         embed.add_field(name = "Honkai: Star Rail Auto Daily Claim",value = "Enabled" if hsautoclaim else "Disabled")
-        embed.set_footer(text = "Use the dropdowns to configure settings.")
+        embed.set_footer(text = "Use the dropdowns to configure settings. | You can see your linked account ids with /hoyolab accounts")
         return embed
     
     async def on_timeout(self):
@@ -1213,7 +1351,11 @@ class SettingsView(discord.ui.View):
     
     @discord.ui.button(label = "Genshin UID")
     async def enteruid(self,interaction,button):
-        await interaction.response.send_modal(EditUID(self))
+        await interaction.response.send_modal(EditUID("hoyoverse.settings.uid",self))
+    
+    @discord.ui.button(label = "Honkai Impact 3rd UID")
+    async def enterhuid(self,interaction,button):
+        await interaction.response.send_modal(EditUID("hoyoverse.settings.huid",self))
 
 class PrivateSelect(discord.ui.Select):
     def __init__(self):
@@ -1275,16 +1417,17 @@ class DisableSelect(discord.ui.Select):
         embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
         await interaction.response.edit_message(embed = embed)
 
-class EditUID(discord.ui.Modal,title = "Genshin UID Setup"):
-    def __init__(self,view):
+class EditUID(discord.ui.Modal,title = "In-Game UID Setup"):
+    def __init__(self,key,view):
         super().__init__()
         self.view = view
+        self.key = key
 
     uid = discord.ui.TextInput(label = "UID",placeholder="The account UID you want to use",max_length = 10)
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.uid.value.isnumeric():
-            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.uid":int(self.uid.value)}})
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{self.key:int(self.uid.value)}})
             embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
             await interaction.response.edit_message(embed = embed)
         else:
@@ -1550,7 +1693,7 @@ class WishSelect(discord.ui.Select):
         for wish in banner[::-1]:
             if wish.rarity == 5:
                 if self.values[0] == "c":
-                    if wish.name in ['Diluc','Mona','Keqing','Qiqi','Jean'] or (wish.name == "Tighnari" and wish.time > datetime.datetime(year = 2022, month = 9, day = 27, hour = 18, tzinfo = datetime.timezone.utc)):
+                    if wish.name in ['Diluc','Mona','Keqing','Qiqi','Jean'] or (wish.name == "Tighnari" and wish.time > datetime.datetime(year = 2022, month = 9, day = 27, hour = 18, tzinfo = datetime.timezone.utc)) or (wish.name == "Dehya" and wish.time > datetime.datetime(year = 2023, month = 4, day = 12, hour = 18, tzinfo = datetime.timezone.utc)):
                         stats["Lose50"] += 1
                         guaranteed = True
                     elif guaranteed:
@@ -1607,6 +1750,91 @@ class WishView(discord.ui.View):
             return True
         await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
         return False
+
+class WarpView(discord.ui.View):
+    def __init__(self,ctx,data,member,default):
+        super().__init__(timeout=300)
+        self.add_item(WarpSelect(data,member,default))
+        self.message = None
+        self.ctx = ctx
+    
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view = self)
+
+    async def interaction_check(self, interaction):
+        if interaction.user == self.ctx.author:
+            return True
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        return False
+
+class WarpSelect(discord.ui.Select):
+    def __init__(self,warps,member,default):
+        options = [
+            discord.SelectOption(emoji = "<:stellarjade:1105682519711563846>", label = "Wish Overview", value = "o"),
+            discord.SelectOption(emoji = "<:specialstarrailpass:1105682773001371808>", label = "Limited Character Banner", value = "11"),
+            discord.SelectOption(emoji = "<:specialstarrailpass:1105682773001371808>", label = "Limited Light Cone Banner",value = "12"),
+            discord.SelectOption(emoji = "<:starrailpass:1105682774431629342>", label = "Standard Banner",value = "1"),
+        ]
+        self.warps = warps
+        self.default = default
+        self.member = member
+        self.names = {"11":"Limited Character Banner","12":"Limited Light Cone Banner","1":"Standard Banner"}
+        super().__init__(placeholder='Banner Selection', min_values=0, max_values=1, options=options)
+    
+    async def callback(self, interaction: discord.Interaction):
+        if self.values[0] == "o":
+            return await interaction.response.edit_message(embed = self.default)
+        stats = {"5":[],"4":[],"5Character":[],"5Light Cone":[],"4Character":[],"4Light Cone":[],"3":[],"Pity5":[],"Win50":0,"Lose50":0,"Guaran50":0}
+        banner = self.warps[self.values[0]]
+        fivepity = 0
+        fourpity = 0
+        guaranteed = False
+        for warp in banner[::-1]:
+            if warp["rank_type"] == "5":
+                if self.values[0] == "11":
+                    if warp["name"] in ['Himeko','Welt','Bronya','Gepard','Clara','Yanqing','Bailu']:
+                        stats["Lose50"] += 1
+                        guaranteed = True
+                    elif guaranteed:
+                        stats["Guaran50"] += 1
+                        guaranteed = False
+                    else:
+                        stats["Win50"] += 1
+                stats["5"].append(warp)
+                stats["5" + warp["item_type"]].append(warp)
+                stats["Pity5"].append([warp,fivepity])
+                fivepity = 0
+                fourpity += 1
+            elif warp["rank_type"] == "4":
+                stats["4"].append(warp)
+                stats["4" + warp["item_type"]].append(warp)
+                fivepity += 1
+                fourpity = 0
+            else:
+                stats["3"].append(warp)
+                fivepity += 1
+                fourpity += 1
+        embed = discord.Embed(title = f"{self.names[self.values[0]]} Warps for {self.member}",description = f"Looking at the past `{len(banner)}` Warps",color = discord.Color.random())
+        embed.set_footer(text = "Use the dropdown below to sort by banner!")
+        if len(banner) < 1:
+            embed.add_field(name = "No wishes found!",value = "I did not find any wishes on this banner for this user!")
+            await interaction.response.edit_message(embed = embed)
+            return
+        embed.add_field(name = "Total Statistics",value = f"Total Warps: {len(banner)} <:specialstarrailpass:1105682773001371808>\nStellar Jade Equivalent: {len(banner)*160} <:stellarjade:1105682519711563846>\nAverage Pity: {int((len(banner)-fivepity)/len(stats['5'])) if len(stats['5']) > 0 else 'None'} <:starrailpass:1105682774431629342>",inline = False)
+        embed.add_field(name = "By Rarity",value = f'5 🌟 Pulls: {len(stats["5Character"]) + len(stats["5Light Cone"])}\n<:replycont:1106010140425072650> Characters: {len(stats["5Character"])}\n<:reply:1106010100159750205> Light Cones: {len(stats["5Light Cone"])}\n4 🌟 Pulls: {len(stats["4Character"]) + len(stats["4Light Cone"])}\n<:replycont:1106010140425072650> Characters: {len(stats["4Character"])}\n<:reply:1106010100159750205> Light Cones: {len(stats["4Light Cone"])}\n3 ⭐ Pulls: {len(stats["3"])}')
+        embed.add_field(name = "Recent Statistics",value = f'Last 5 🌟: {stats["5"][-1]["name"] if len(stats["5"]) > 0 else "None"}\nLast 4 🌟: {stats["4"][-1]["name"] if len(stats["4"]) > 0 else "None"}\nLast 3 ⭐: {stats["3"][-1]["name"] if len(stats["3"]) > 0 else "None"}')
+        if self.values[0] == "11" or self.values[0] == "1":
+            embed.add_field(name = "Current Pity",value = f"5 🌟 Pity: {fivepity} ({90-fivepity} to guaranteed)\n4 🌟 Pity: {fourpity} ({10-fourpity} to guaranteed)",inline = False)
+        elif self.values[0] == "12":
+            embed.add_field(name = "Current Pity",value = f"5 🌟 Pity: {fivepity} ({80-fivepity} to guaranteed)\n4 🌟 Pity: {fourpity} ({10-fourpity} to guaranteed)",inline = False)
+        embed.add_field(name = "20 Most Recent 5-Star Pity Count",value = " | ".join([x[0]["name"] + ": `" + str(x[1] + 1) + "`" for x in stats['Pity5'][:-21:-1]]) if len(stats['Pity5']) > 0 else "No recent 5-stars.",inline = False)
+        
+        if self.values[0] == "11":
+            embed.add_field(name = "50/50 Statistics", value = f"50/50 Won: {stats['Win50']} ({round(stats['Win50']/(stats['Lose50'] + stats['Win50']) * 100,2)}%)\n50/50 Lost: {stats['Lose50']} ({round(stats['Lose50']/(stats['Lose50'] + stats['Win50']) * 100,2)}%)\nGuaranteed: {stats['Guaran50']}\n{'You are currently on a guaranteed 5 🌟' if guaranteed else 'You are currently on a 50/50 5 🌟'}")
+
+        await interaction.response.edit_message(embed = embed)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self,characters):
@@ -2313,6 +2541,43 @@ class CollectAuthKey(discord.ui.Modal,title = "Authkey Request"):
         interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.authkey":authkey}})
 
         embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your authkey in the bot. You can now use any genshin command pertaining to wish history and transaction history!")
+        await interaction.response.send_message(embed = embed,ephemeral = True)
+
+class HSAuthkeyView(ui.View):
+    def __init__(self,ctx):
+        super().__init__(timeout = 300)
+        self.ctx = ctx
+        self.message = None
+    
+    async def interaction_check(self, interaction):
+        if interaction.user == self.ctx.author:
+            return True
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        return False
+    
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view = self)
+    
+    @discord.ui.button(label = "1. Get Script",style = discord.ButtonStyle.blurple)
+    async def getscript(self,interaction,button):
+        await interaction.response.send_message('```Invoke-Expression (New-Object Net.WebClient).DownloadString("https://gist.githubusercontent.com/ChuChuCodes0414/bf5c869449dfcd9320ed7c2d2ea355d9/raw")```',ephemeral = True)
+    
+    @discord.ui.button(label = "2. Enter Information",style = discord.ButtonStyle.blurple)
+    async def enterinformation(self,interaction,button):
+        await interaction.response.send_modal(HSCollectAuthKey())
+
+class HSCollectAuthKey(discord.ui.Modal,title = "Authkey Request"):
+    def __init__(self):
+        super().__init__()
+
+    authkey = discord.ui.TextInput(label = "Authkey",placeholder="A long link...",max_length = 3000)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.hauthkey":self.authkey.value}})
+
+        embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your authkey in the bot. You can now use any Honkai: Star Rail command pertaining to warp history!")
         await interaction.response.send_message(embed = embed,ephemeral = True)
 
 async def setup(client):

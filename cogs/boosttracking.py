@@ -39,7 +39,7 @@ class BoostTracking(commands.Cog):
     # Handles Boosts
     @commands.Cog.listener()
     async def on_message(self,message):
-        if not message.guild or str(message.guild.id) not in self.active:
+        if not message.guild or message.guild.id not in self.active:
             return
         description = None
         if message.type == discord.MessageType.premium_guild_subscription:
@@ -54,7 +54,7 @@ class BoostTracking(commands.Cog):
         if not description:
             return
 
-        self.db.guild_data.update_one({"_id":message.guild.id},{"$inc" : {f"boosttracking.{message.author.id}":1}},upsert = True)
+        self.client.db.guild_data.update_one({"_id":message.guild.id},{"$inc" : {f"boosttracking.{message.author.id}":1}},upsert = True)
         raw = self.client.db.guild_data.find_one({"_id":message.guild.id},{"settings.boosttracking":1}) or {}
         achannel = methods.query(data = raw, search = ["settings","boosttracking","announce"])
         achannel = message.guild.get_channel(achannel)
@@ -74,7 +74,7 @@ class BoostTracking(commands.Cog):
     # For when the member unboosts and loses the role
     @commands.Cog.listener()
     async def on_member_update(self,member_before,member_after):
-        if str(member_before.guild.id) not in self.active:
+        if member_before.guild.id not in self.active:
             return
         if member_before.guild.premium_subscriber_role in member_before.roles and member_before.guild.premium_subscriber_role not in member_after.roles:
             current = await self.pull_boosts(member_before.guild,member_before)
@@ -95,7 +95,7 @@ class BoostTracking(commands.Cog):
     # For when a member leaves and subsequently unboosts
     @commands.Cog.listener()
     async def on_member_remove(self,member):
-        if str(member.guild.id) not in self.active:
+        if member.guild.id not in self.active:
             return
         current = await self.pull_boosts(member.guild,member)
 

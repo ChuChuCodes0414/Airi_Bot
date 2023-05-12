@@ -28,7 +28,7 @@ class Status(commands.Cog):
     @commands.hybrid_command(id = "301",help = "Get information about the bot.")
     async def about(self,ctx):
         embed = discord.Embed(title = self.client.user.name,description = "A multipurpose utility bot with a little bit of everything!\nCreated and maintained by ChuGames#0001",color = discord.Color.random())
-        embed.add_field(name ="Current Version",value = f"3.0 Beta",inline = False)
+        embed.add_field(name ="Current Version",value = f"3.0.5 Beta",inline = False)
         embed.add_field(name="Server Count", value=f"{len(self.client.guilds)} servers")
         embed.add_field(name="Member Count", value=f"{len(self.client.users)} members")
         embed.add_field(name="Main Libraries Used", value=f"discord.py (https://github.com/Rapptz/discord.py)\ngenshin.py (https://github.com/thesadru/genshin.py)\nEnkaCard (https://github.com/DEViantUA/EnkaCard)",inline = False)
@@ -39,7 +39,7 @@ class Status(commands.Cog):
     
     @commands.hybrid_command(id = "302",help = "Invite the bot or join the support server.")
     async def invite(self,ctx):
-        embed = discord.Embed(title = "Invite Links",description = "[Support Server](https://discord.com/invite/9pmGDc8pqQ)\n[Admin Perms Invite (Recommended)](https://discord.com/api/oauth2/authorize?client_id=752335987761217576&permissions=8&scope=bot)\n[Mod Perms Invite](https://discord.com/api/oauth2/authorize?client_id=752335987761217576&permissions=41771777523703&scope=bot)\n[Minimal Perms](https://discord.com/api/oauth2/authorize?client_id=752335987761217576&permissions=40671297011392&scope=bot)\n\nPlease note, inviting the bot with less perms means you will need to manage perms own your own.",color = discord.Color.random())
+        embed = discord.Embed(title = "Invite Links",description = "[Support Server](https://discord.com/invite/9pmGDc8pqQ)\n[Admin Perms Invite (Recommended)](https://discord.com/api/oauth2/authorize?client_id=752335987761217576&permissions=8&scope=bot)\n[Mod Perms Invite](https://discord.com/api/oauth2/authorize?client_id=752335987761217576&permissions=41771777523703&scope=bot)\n[Minimal Perms Invite](https://discord.com/api/oauth2/authorize?client_id=752335987761217576&permissions=40671297011392&scope=bot)\n\nPlease note, inviting the bot with less perms means you will need to manage perms own your own.",color = discord.Color.random())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     

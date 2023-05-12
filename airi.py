@@ -20,6 +20,8 @@ class Client(commands.Bot):
         super().__init__(command_prefix = self.get_prefix, intents = intents,activity = discord.Game("/help | @Mafuyu Bot"))
 
     async def get_prefix(self,message):
+        return ","
+        '''
         if message.guild.id in self.prefixes:
             return self.prefixes[message.guild.id]
         
@@ -27,6 +29,7 @@ class Client(commands.Bot):
         prefix = methods.query(data = data,search = ["settings","general","prefix"]) or "m?"
         self.prefixes[message.guild.id] = prefix
         return prefix
+        '''
         
     async def setup_hook(self):
         self.session = aiohttp.ClientSession()
@@ -59,4 +62,4 @@ def global_rules_check(ctx):
     return True
 
 load_dotenv()
-client.run(os.getenv('DEVELOPMENT_DEVLOPMENT_BOT_TOKEN'))
+client.run(os.getenv('DEVLOPMENT_BOT_TOKEN'))

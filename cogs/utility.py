@@ -93,7 +93,7 @@ class Utility(commands.Cog):
                     overwrite = message.channel.overwrites_for(message.guild.default_role)
                     overwrite.send_messages = False
                     await message.channel.set_permissions(message.guild.default_role, overwrite=overwrite)
-                    await message.channel.send(embed = discord.Embed(description = f"Thank you for bumping! Make sure to leave a review at [https://disboard.org/server/{message.guild.id}](https://disboard.org/server/{message.guild.id})",color = discord.Color.random()))
+                    await message.channel.send(embed = discord.Embed(description = f"Thank you for bumping! Make sure to leave a review at [disboard.org/server/{message.guild.id}](https://disboard.org/server/{message.guild.id})",color = discord.Color.random()))
                     await asyncio.sleep(7200)
                     overwrite = message.channel.overwrites_for(message.guild.default_role)
                     overwrite.send_messages = None

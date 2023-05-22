@@ -166,9 +166,9 @@ class HelpCommand(commands.Cog):
     def __init__(self,client):
         self.client = client
         self.short = "placeholder"
-        help_command = MyHelp()
-        help_command.cog = self # Instance of YourCog class
-        client.help_command = help_command
+        self.help_command = MyHelp()
+        self.help_command.cog = self # Instance of YourCog class
+        client.help_command = self.help_command
     
     @app_commands.command(description = "A helpful command to get started!")
     @app_commands.describe(search = "Your search query, either a command name or category name!")

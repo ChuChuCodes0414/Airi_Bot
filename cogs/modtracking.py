@@ -4,6 +4,7 @@ from discord.ext import commands, menus
 from discord import ui, app_commands
 import datetime
 from utils import methods, errors, classes
+from typing import Literal
 
 class ModTracking(commands.Cog):
     """
@@ -31,19 +32,20 @@ class ModTracking(commands.Cog):
     async def on_ready(self):
         print('Mod Tracking Category Loaded.')
 
-    @commands.hybrid_group(id = "80")
+    @commands.hybrid_group(extras = {"id": "80"},help = "The command group to manage mod tracking.")
     @modtrack_role_check()
     async def modtracking(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help modtracking` to get a list of commands.")
     
-    @modtracking.command(id = "81",help = "Log an action that you have completed.")
+    @modtracking.command(extras = {"id": "81"},help = "Log an action that you have completed.")
     @modtrack_role_check()
     @app_commands.describe(action = "What action you have done.")
     async def log(self,ctx,*,action):
         now = datetime.datetime.now()
         formatnow = str(now.month) + "-" + str(now.day) + "-" + str(now.year) + " " + str(now.hour) + ":" + str(now.minute)
-        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$push":{f"modtracking.{ctx.author.id}":[action,formatnow]}})
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$push":{f"modtracking.actions.{ctx.author.id}":[action,formatnow]}})
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$inc" : {f"modtracking.weekly.{ctx.author.id}":1}})
         embed = discord.Embed(description = f"<a:PB_greentick:865758752379240448> Successfully logged **{action}**!",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
@@ -61,86 +63,127 @@ class ModTracking(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             await logchannel.send(embed = embed)
 
-    @modtracking.command(id = "82",help = "Edit an action that you have already logged.")
+    @modtracking.command(extras = {"id": "82"},help = "Edit an action that you have already logged.")
     @modtrack_role_check()
     @app_commands.describe(index = "The numerical identifier for the action.",action = "The detail to edit the action to.")
     async def edit(self,ctx,index:commands.Range[int,0],*,action):
-        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.{ctx.author.id}":1})
-        actions = methods.query(data = raw,search = ["modtracking",str(ctx.author.id)]) or []
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.actions.{ctx.author.id}":1})
+        actions = methods.query(data = raw,search = ["modtracking","actions",str(ctx.author.id)]) or []
         
         if len(actions) < index:
             raise errors.ParsingError(message = f"You tried to edit index `{index}`, but only `{len(actions)}` indexes exist.")
-        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{f"modtracking.{ctx.author.id}.{index-1}.0":action}})
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{f"modtracking.actions.{ctx.author.id}.{index-1}.0":action}})
         embed = discord.Embed(description = f"<a:PB_greentick:865758752379240448> Successfully edited `{index}` to **{action}**!",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @modtracking.command(id = "83",help = "Remove one of your logs.")
+    @modtracking.command(extras = {"id": "83"},help = "Remove one of your logs.")
     @modtrack_role_check()
     @app_commands.describe(index = "The index of the log you want to remove.")
     async def remove(self,ctx,index:commands.Range[int,0]):
-        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.{ctx.author.id}":1})
-        actions = methods.query(data = raw,search = ["modtracking",str(ctx.author.id)]) or []
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.actions.{ctx.author.id}":1})
+        actions = methods.query(data = raw,search = ["modtracking","actions",str(ctx.author.id)]) or []
         
         if len(actions) < index:
             raise errors.ParsingError(message = f"You tried to remove index `{index}`, but only `{len(actions)}` indexes exist.")
 
-        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$pull":{f"modtracking.{ctx.author.id}":actions[index-1]}})
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$pull":{f"modtracking.actions.{ctx.author.id}":actions[index-1]}})
 
         embed = discord.Embed(description = f"<a:PB_greentick:865758752379240448> Successfully removed `{index}`!",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @modtracking.command(id = "84",help = "Clear all mod tracking data for a member.")
+    @modtracking.command(extras = {"id": "84"},help = "Clear all mod tracking data for a member.")
     @commands.has_permissions(administrator = True)
     @app_commands.describe(member = "The member of whom to clear the mod tracking data for.")
     async def clear(self,ctx,member:discord.Member):
-        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"modtracking.{member.id}":""}})
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"modtracking.actions.{member.id}":""}})
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"modtracking.weekly.{member.id}":""}})
         embed = discord.Embed(description = f"<a:PB_greentick:865758752379240448> Successfully removed all data for **{member}**!",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @modtracking.command(id = "85",help = "View the amount of logs you or another person has.")
+    @modtracking.command(extras = {"id": "85"},help = "View the amount of logs you or another person has.")
     @modtrack_role_check()
     @app_commands.describe(member = "The member of whom to check the log amount for.")
     async def amount(self,ctx,member:discord.Member = None):
         member = member or ctx.author
-        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.{member.id}":1})
-        actions = methods.query(data = raw,search = ["modtracking",str(member.id)]) or []
-        embed = discord.Embed(description = f"Mod Tracking Logs for **{member}**: `{len(actions)}` actions",color = discord.Color.random())
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.actions.{member.id}":1})
+        actions = methods.query(data = raw,search = ["modtracking","actions",str(member.id)]) or []
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.weekly.{member.id}":1})
+        weekly = methods.query(data = raw,search = ["modtracking","weekly",str(member.id)]) or 0
+        embed = discord.Embed(description = f"__Mod Tracking Logs for **{member}**__\n `{len(actions)}` total actions\n`{weekly}` weekly actions",color = discord.Color.random())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @modtracking.command(id = "86",help = "View the details of logged actions for yourself or for someone else.")
+    @modtracking.command(extras = {"id": "86"},help = "View the details of logged actions for yourself or for someone else.")
     @modtrack_role_check()
     @app_commands.describe(member = "The member of whom to check the details for.")
     async def detail(self,ctx,member:discord.Member = None):
         member = member or ctx.author
-        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.{member.id}":1})
-        actions = methods.query(data = raw,search = ["modtracking",str(member.id)]) or []
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.actions.{member.id}":1})
+        actions = methods.query(data = raw,search = ["modtracking","actions",str(member.id)]) or []
         actions.reverse()
         formatter = ModPageSource(member,actions)
         menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @modtracking.command(id = "87",help = "Show the mod actions leaderboard.")
+    @modtracking.command(extras = {"id": "87"},help = "Show the mod actions leaderboard.")
     @modtrack_role_check()
-    async def leaderboard(self,ctx):
-        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking":1})
-        data = methods.query(data = raw,search = ["modtracking"])
+    @app_commands.describe(category = "The type of leaderboard you want to check.")
+    async def leaderboard(self,ctx,category: Literal['total','weekly'] = None):
+        category = category or 'total'
 
-        build = {}
-        if not data:
-            users,log =  [],build
+        if category == 'total':
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.actions":1})
+            data = methods.query(data = raw,search = ["modtracking","actions"])
+
+            build = {}
+            if not data:
+                users,log =  [],build
+            else:
+                for person in data:
+                    build[person] = len(data[person])
+
+                users,log = sorted(build, key=build.get, reverse=True) , build
         else:
-            for person in data:
-                build[person] = len(data[person])
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.weekly":1})
+            data = methods.query(data = raw,search = ["modtracking","weekly"])
 
-            users,log = sorted(build, key=build.get, reverse=True) , build
-        
+            build = {}
+            if not data:
+                users,log =  [],build
+            else:
+                for person in data:
+                    build[person] = data[person]
+
+                users,log = sorted(build, key=build.get, reverse=True) , build
+            
         formatter = ModLBPageSource(users,log)
         menu = classes.MenuPages(formatter)
         await menu.start(ctx)
+    
+    @modtracking.command(extras = {"id":"88"},help = "Reset the leaderboard for the week and get the top three.")
+    @commands.has_permissions(administrator= True)
+    async def resetweekly(self,ctx):
+        async with ctx.typing():
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"modtracking.weekly":1})
+            data = methods.query(data = raw,search = ["modtracking","weekly"])
+
+            build = {}
+            if not data:
+                users,log =  [],build
+            else:
+                for person in data:
+                    build[person] = data[person]
+                users,log = sorted(build, key=build.get, reverse=True) , build
+            
+            embed = discord.Embed(title = "Weekly Leaderboard Reset",description = "This week's winners are below",color = discord.Color.gold())
+            for place,user in enumerate(users[:3]):
+                amount = log[user]
+                embed.add_field(name = f"Rank #{place+1}",value = f"<@{user}> `{amount}` Events",inline = False)
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"modtracking.weekly":""}})    
+        await ctx.reply(embed = embed)       
 
 class ModPageSource(menus.ListPageSource):
     def __init__(self,user,logs):

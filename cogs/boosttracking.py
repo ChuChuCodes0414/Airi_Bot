@@ -111,7 +111,7 @@ class BoostTracking(commands.Cog):
                 embed.timestamp = discord.utils.utcnow()
                 await lchannel.send(embed = embed)
     
-    @commands.hybrid_command(id = "10",help = "View boost tracking statistics for the server.")
+    @commands.hybrid_command(extras = {"id": "10"},help = "View boost tracking statistics for the server.")
     @boost_active_check()
     async def boostserverinfo(self,ctx):
         raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{"boosttracking":1}) or {}
@@ -131,7 +131,7 @@ class BoostTracking(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = f"{self.client.user.name} | Edit boost tracking settings with /settings")
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "11",help = "View boost tracking statistics for a member.")
+    @commands.hybrid_command(extras = {"id": "11"},help = "View boost tracking statistics for a member.")
     @boost_active_check()
     @app_commands.describe(member = "The member to check boost information for.")
     async def boostmemberinfo(self,ctx,member:discord.Member = None):
@@ -146,7 +146,7 @@ class BoostTracking(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
 
-    @commands.hybrid_command(id = "12",help = "Set the boost count for a member.")
+    @commands.hybrid_command(extras = {"id": "12"},help = "Set the boost count for a member.")
     @commands.has_guild_permissions(administrator = True)
     @boost_active_check()
     @app_commands.describe(member = "The member to set boost information for.")

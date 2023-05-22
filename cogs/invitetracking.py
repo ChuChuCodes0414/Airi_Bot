@@ -174,7 +174,7 @@ class InviteTracking(commands.Cog):
             await self.log_invite_leave(member,inviteruser)
 
 
-    @commands.hybrid_command(id = "60",help = "View who invited a member, as well as their invite count.")
+    @commands.hybrid_command(extras = {"id": "60"},help = "View who invited a member, as well as their invite count.")
     @app_commands.describe(member = "The user to lookup information for.")
     async def invites(self,ctx,member:discord.Member = None):
         member = member or ctx.author
@@ -215,7 +215,7 @@ class InviteTracking(commands.Cog):
 
         await ctx.send(embed = emb)
 
-    @commands.hybrid_command(id = "61", aliases = ['invitelb','ilb'],help = "View the invite leaderboard for your server!")
+    @commands.hybrid_command(extras = {"id": "61"}, aliases = ['invitelb','ilb'],help = "View the invite leaderboard for your server!")
     async def inviteleaderboard(self,ctx):
         async with ctx.typing():
             raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id})

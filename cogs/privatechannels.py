@@ -16,12 +16,12 @@ class PrivateChannels(commands.Cog):
     async def on_ready(self):
         print('Private Channels Category Loaded.')
     
-    @commands.hybrid_group(id = "90",aliases = ['pc'])
+    @commands.hybrid_group(extras = {"id": "90"},aliases = ['pc'],help = "The command group to manage private channels.")
     async def privatechannels(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help privatechannels` to get a list of commands.")
     
-    @privatechannels.command(id = "91",aliases = ['ac'],help = "Add a member to the current channel.")
+    @privatechannels.command(extras = {"id": "91"},aliases = ['ac'],help = "Add a member to the current channel.")
     @app_commands.describe(member = "The member to add to the channel.")
     @commands.has_permissions(manage_channels= True)
     async def add(self,ctx, member:discord.Member):
@@ -35,7 +35,7 @@ class PrivateChannels(commands.Cog):
             raise errors.PreRequisiteError(message = "There is not a channel setup here!\nUse `/privatechannels set` to get started.")
         if member.id in data:
             raise errors.PreRequisiteError(message = f"**{member}** is already added to this channel!\nTo fix overrides for this member, run `/privatechannels fix`.")
-        if len(data) >= data[0] + 1:
+        if len(data) >= int(data[0]) + 1:
             raise errors.PreRequisiteError(message = f"This channel is at its limit of `{data[0]}`!\nUse `/privatechannels changelimit` to change the member limit.")
 
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$addToSet":{f"privatechannels.{ctx.channel.id}":member.id}})
@@ -47,7 +47,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @privatechannels.command(id = "92",aliases = ['rc'],help = "Remove a member from the current channel.")
+    @privatechannels.command(extras = {"id": "92"},aliases = ['rc'],help = "Remove a member from the current channel.")
     @commands.has_permissions(manage_channels = True)
     @app_commands.describe(user = "The member to remove from the channel.")
     async def remove(self,ctx,user:discord.User):
@@ -75,7 +75,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @privatechannels.command(id = "94",aliases = ['abused'],help = "Fix overrides for a member in private channels.")
+    @privatechannels.command(extras = {"id": "94"},aliases = ['abused'],help = "Fix overrides for a member in private channels.")
     @commands.has_permissions(administrator= True)
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to fix channels for.")
@@ -118,7 +118,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @privatechannels.command(id = "95",aliases = ['ci'],description = "Show member information for the current or specified channel.")
+    @privatechannels.command(extras = {"id": "95"},aliases = ['ci'],description = "Show member information for the current or specified channel.")
     @app_commands.describe(channel = "The channel to see information for.")
     async def info(self,ctx,channel:discord.TextChannel = None):
         channel = channel or ctx.channel
@@ -144,7 +144,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed=embed)
     
-    @privatechannels.command(id = "96",aliases = ["cl"],help = "Change the member limit of the current or specified channel.")
+    @privatechannels.command(extras = {"id": "96"},aliases = ["cl"],help = "Change the member limit of the current or specified channel.")
     @commands.has_permissions(administrator = True)
     @app_commands.describe(limit = "The amount of members allowed to be in the channel.",channel = "The channel to change the limit for.")
     async def changelimit(self,ctx,limit:commands.Range[int,0],channel:discord.TextChannel = None):
@@ -161,7 +161,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @privatechannels.command(id = "97",aliases = ["co"],help = "Change the current or specified channel's owner.")
+    @privatechannels.command(extras = {"id": "97"},aliases = ["co"],help = "Change the current or specified channel's owner.")
     @commands.has_permissions(administrator = True)
     @app_commands.describe(owner = "The new owner of the channel.",channel = "The channel to change the owner for.")
     async def changeowner(self,ctx,owner:discord.Member,channel:discord.TextChannel = None):
@@ -192,7 +192,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @privatechannels.command(id = "98",aliases = ["sc"],help = "Setup a channel with an owner and limit.")
+    @privatechannels.command(extras = {"id": "98"},aliases = ["sc"],help = "Setup a channel with an owner and limit.")
     @commands.has_permissions(administrator = True)
     @app_commands.describe(owner = "The owner of the channel.",channel = "The channel to setup.",limit = "The amoutn of members allowed to be in the channel.")
     async def set(self,ctx,owner:discord.Member,channel:discord.TextChannel = None,limit:commands.Range[int,0] = None):
@@ -215,7 +215,7 @@ class PrivateChannels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @privatechannels.command(id = "99", help = "Remove all private channel data, does not remove overrides.")
+    @privatechannels.command(extras = {"id": "99"}, help = "Remove all private channel data, does not remove overrides.")
     @commands.has_permissions(administrator = True)
     @app_commands.describe(channel = "The channel to delete information for.")
     async def delete(self,ctx,channel:discord.TextChannel = None):

@@ -133,7 +133,7 @@ class Sniper(commands.Cog):
         except:
             pass
 
-    @commands.hybrid_command(id = "100",name = 'snipe',aliases = ['sn'],help = "Snipe a recently deleted message!")
+    @commands.hybrid_command(extras = {"id":"100"},name = 'snipe',aliases = ['sn'],help = "Snipe a recently deleted message!")
     @app_commands.describe(index = "The message index you want to snipe, bigeer number the older the message.")
     @app_commands.describe(channel = "The channel to snipe from.")
     async def snipe(self,ctx,index:int = None,channel:discord.TextChannel = None):
@@ -172,7 +172,7 @@ class Sniper(commands.Cog):
 
         await ctx.reply(embed = emb)
 
-    @commands.hybrid_command(id = "101",aliases = ['ms'],help = "Just how many messages that were deleted are hiding in this channel? Find out with this command.")
+    @commands.hybrid_command(extras = {"id": "101"},aliases = ['ms'],help = "Just how many messages that were deleted are hiding in this channel? Find out with this command.")
     async def maxsnipe(self,ctx):
         try:
             messages = len(self.sniped_messages[ctx.channel.id])
@@ -180,7 +180,7 @@ class Sniper(commands.Cog):
             messages = 0
         await ctx.reply(embed = discord.Embed(description = f"There are a total of `{messages}` messages hiding in this channel!",color = discord.Color.random()))
 
-    @commands.hybrid_command(id = "102",name = 'esnipe',aliases = ['esn'],help = "Snipe a recently edited message!")
+    @commands.hybrid_command(extras = {"id": "102"},name = 'esnipe',aliases = ['esn'],help = "Snipe a recently edited message!")
     @app_commands.describe(index = "The message index you want to snipe, bigeer number the older the message.")
     @app_commands.describe(channel = "The channel to snipe from.")
     async def esnipe(self,ctx,index:int = None,channel:discord.TextChannel = None):
@@ -202,7 +202,7 @@ class Sniper(commands.Cog):
 
         await ctx.reply(embed = emb)
 
-    @commands.hybrid_command(id = "103",aliases = ['mes'],help = "Just how many messages that were edited are hiding in this channel? Find out with this command.")
+    @commands.hybrid_command(extras = {"id": "103"},aliases = ['mes'],help = "Just how many messages that were edited are hiding in this channel? Find out with this command.")
     async def maxesnipe(self,ctx):
         try:
             messages = len(self.edited_messages[ctx.channel.id])
@@ -210,7 +210,7 @@ class Sniper(commands.Cog):
             messages = 0
         await ctx.reply(embed = discord.Embed(description = f"There are a total of `{messages}` edited messages hiding in this channel!",color = discord.Color.random()))
 
-    @commands.hybrid_command(id = "104",name = 'rsnipe',aliases = ['rsn'],help = "Snipe a recently removed reaction!")
+    @commands.hybrid_command(extras = {"id": "104"},name = 'rsnipe',aliases = ['rsn'],help = "Snipe a recently removed reaction!")
     @app_commands.describe(index = "The message index you want to snipe, bigeer number the older the message.")
     @app_commands.describe(channel = "The channel to snipe from.")
     async def rsnipe(self,ctx,index:int = None,channel:discord.TextChannel = None):
@@ -231,7 +231,7 @@ class Sniper(commands.Cog):
         emb.timestamp = data[3]
         await ctx.reply(embed = emb)
 
-    @commands.hybrid_command(id = "105",aliases = ['mrs'],help = "Just how many messages that were edited are hiding in this channel? Find out with this command.")
+    @commands.hybrid_command(extras = {"id": "105"},aliases = ['mrs'],help = "Just how many messages that were edited are hiding in this channel? Find out with this command.")
     async def maxrsnipe(self,ctx):
         try:
             reactions = len(self.removed_reactions[ctx.channel.id])
@@ -239,7 +239,7 @@ class Sniper(commands.Cog):
             reactions = 0
         await ctx.reply(embed = discord.Embed(description = f"There are a total of `{reactions}` removed reactions hiding in this channel!",color = discord.Color.random()))
 
-    @commands.hybrid_command(id = "106",aliases = ['psn'],help = "Snipe the list of recently purged messages!")
+    @commands.hybrid_command(extras = {"id": "106"},aliases = ['psn'],help = "Snipe the list of recently purged messages!")
     @app_commands.describe(index = "The message index you want to snipe, bigeer number the older the message.")
     @app_commands.describe(channel = "The channel to snipe from.")
     async def psnipe(self,ctx,index:int = None,channel:discord.TextChannel = None):
@@ -273,7 +273,7 @@ class Sniper(commands.Cog):
         emb.timestamp = data[1]
         return await ctx.reply(embed = emb)
 
-    @commands.hybrid_command(id = "107",aliases = ['mps'],help = "Just how many messages that were purged are hiding in this channel? Find out with this command.")
+    @commands.hybrid_command(extras = {"id": "107"},aliases = ['mps'],help = "Just how many messages that were purged are hiding in this channel? Find out with this command.")
     async def maxpsnipe(self,ctx):
         try:
             messages = len(self.purged_messages[ctx.channel.id])
@@ -281,7 +281,7 @@ class Sniper(commands.Cog):
             messages = 0
         await ctx.reply(embed = discord.Embed(description = f"There are a total of `{messages}` purges hiding in this channel!",color = discord.Color.random()))
     
-    @commands.hybrid_command(id = "108",aliases = ['csn'],help = "Clears all sniped messages from the bot cache for the specified or current channel.")
+    @commands.hybrid_command(extras = {"id": "108"},aliases = ['csn'],help = "Clears all sniped messages from the bot cache for the specified or current channel.")
     @commands.has_permissions(manage_messages = True)
     @app_commands.describe(channel = "The channel to clear snipes from.")
     async def clearsnipes(self,ctx,channel:discord.TextChannel = None):

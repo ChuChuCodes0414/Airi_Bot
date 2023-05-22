@@ -135,11 +135,12 @@ class Hoyoverse(commands.Cog):
     
     def bot_mod_check():
         async def predicate(ctx):
-            raw = ctx.cog.client.db.user_data.find_one({"_id":ctx.author.id},{"botmod":1})
-            botmod = methods.query(data = raw, search = ["botmod"])
+            raw = ctx.cog.client.db.user_data.find_one({"_id":ctx.author.id},{"hoyobotmod":1})
+            print(raw)
+            botmod = methods.query(data = raw, search = ["hoyobotmod"])
             if botmod:
                 return True
-            return errors.SetupCheckFailure(message = "You are not a bot moderator!")
+            raise errors.SetupCheckFailure(message = "You are not a Hoyoverse bot moderator!")
           
         return commands.check(predicate)
 
@@ -201,12 +202,12 @@ class Hoyoverse(commands.Cog):
             raise errors.NotSetupError(message = "The Honkai Impact 3rd UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
         return uid
 
-    @commands.hybrid_group(id = "500")
+    @commands.hybrid_group(extras = {"id": "500"},help = "The command group to manage your account details.")
     async def hoyolab(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help hoyolab` to get a list of commands.")
     
-    @hoyolab.command(id = "501", help = "Link your account!")
+    @hoyolab.command(extras = {"id": "501"}, help = "Link your account!")
     async def link(self,ctx):
         embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
         embed.add_field(name = "Getting Cookies",value = 'From the browser: \n1. Go to [hoyolab.com](https://hoyolab.com).\n2. Login to your account.\n3. In your browser search bar, replace the hoyolab URL with `javascript:`, then paste the code.\n4. Press `Click here to copy!`, and then press `Enter Information` on the bot menu to paste your information in.',inline = False)
@@ -216,7 +217,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @hoyolab.command(id = "540",help = "View information about this group!")
+    @hoyolab.command(extras = {"id": "540"},help = "View information about this group!")
     async def information(self,ctx):
         embed = discord.Embed(title = "Hoyoverse Group Information",description = "All you need to know about the commands!",color = discord.Color.random())
         embed.add_field(name = "Cookie Information",value = "Your cookies are needed as authentication to access any related data, such as your realtimenotes or character information. This information is stored securely, and cannot be used to do any serious damage to your account. However, there is always some risk is giving this information out to the bot, so plan accordingly.",inline = False)
@@ -226,21 +227,21 @@ class Hoyoverse(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
         
-    @hoyolab.command(id = "541",help = "Remove all of your hoyoverse data from the bot.")
+    @hoyolab.command(extras = {"id": "541"},help = "Remove all of your hoyoverse data from the bot.")
     async def remove(self,ctx):
         self.client.db.user_data.update_one({"_id":ctx.author.id},{"$unset":{"hoyoverse":""}})
         embed = discord.Embed(title = "Removed All Hoyoverse Data",description = "All of your stored Hoyoverse data has been removed successfully.",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
 
-    @hoyolab.command(id = "502", help = "Edit any settings related to the Hoyoverse group.")
+    @hoyolab.command(extras = {"id": "502"}, help = "Edit any settings related to the Hoyoverse group.")
     async def settings(self,ctx):
         view = SettingsView(ctx)
         embed = await view.generate_embed(self.client.db.user_data.find_one({"_id":ctx.author.id},{"hoyoverse.settings":1}))
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
 
-    @hoyolab.command(id = "503", help = "Get the accounts linked to your Hoyoverse accounts.")
+    @hoyolab.command(extras = {"id": "503"}, help = "Get the accounts linked to your Hoyoverse accounts.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def accounts(self,ctx,member:discord.Member = None):
@@ -263,12 +264,12 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
 
-    @commands.hybrid_group(id = "504")
+    @commands.hybrid_group(extras = {"id": "504"},help = "The command group to manage Genshin Impact information.")
     async def genshin(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin` to get a list of commands.")
     
-    @genshin.command(id = "505", help = "Overview statistics like achievement count and days active.")
+    @genshin.command(extras = {"id": "505"}, help = "Overview statistics like achievement count and days active.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def stats(self,ctx,member:discord.Member = None):
@@ -290,7 +291,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(file = file,embed = embed,view = view)
         view.message = message
     
-    @genshin.command(id = "506", help = "View spiral abyss statistics.")
+    @genshin.command(extras = {"id": "506"}, help = "View spiral abyss statistics.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",cycle = "Either the current spiral abyss period or the previous one.")
     async def spiralabyss(self,ctx,member:discord.Member = None, cycle: Literal['current','previous'] = None):
@@ -316,7 +317,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(file = file,embed = embed,view = view)
         view.message = message
     
-    @genshin.command(id = "507",aliases = ['rtn'], help = "Get real-time notes information like resin count.")
+    @genshin.command(extras = {"id": "507"},aliases = ['rtn'], help = "Get real-time notes information like resin count.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def realtimenotes(self,ctx,member:discord.Member = None):
@@ -373,7 +374,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(id = "508",help = "Redeem a code for yourself or a friend.")
+    @genshin.command(extras = {"id": "508"},help = "Redeem a code for yourself or a friend.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def redeem(self,ctx,code:str,member:discord.Member = None):
@@ -390,7 +391,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(id = "509",help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
+    @genshin.command(extras = {"id": "509"},help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
     @bot_mod_check()
     @commands.cooldown(1,10,commands.BucketType.user)
     async def massredeem(self,ctx,code:str):
@@ -399,16 +400,16 @@ class Hoyoverse(commands.Cog):
             success,error = 0,0
             for account in accounts:
                 hoyosettings = account.get("hoyoverse",{}).get("settings",{})
-                if "ltuid" in hoyosettings and "cookie_token" in hoyosettings:
+                if "ltuid" in hoyosettings and "cookietoken" in hoyosettings:
                     account_id,cookie_token = hoyosettings['ltuid'], hoyosettings['cookietoken']
-                    if account_id and cookie_token:
-                        account_id = rsa.decrypt(binascii.unhexlify(account_id),self.private).decode('utf8')
-                        cookie_token = rsa.decrypt(binascii.unhexlify(cookie_token),self.private).decode('utf8')
+                    account_id = rsa.decrypt(binascii.unhexlify(account_id),self.private).decode('utf8')
+                    cookie_token = rsa.decrypt(binascii.unhexlify(cookie_token),self.private).decode('utf8')
                     try:
-                        client = genshin.Client({'account_id':account_id,'cookie_token':cookie_token})
-                        await client.redeem_code(code,game = genshin.Game.genshin)
+                        client = genshin.Client({"account_id": account_id ,"cookie_token": cookie_token})
+                        await client.redeem_code(code,game = genshin.Game.GENSHIN)
                         success += 1
-                    except:
+                    except Exception as e:
+                        print(e)
                         error += 1
             embed = discord.Embed(title = "Genshin Promotion Code Redeemed!",description = f"**{ctx.author}** has redeemed the code `{code}` for all users who have auto redeem setup!",color = discord.Color.random())
             embed.add_field(name = "Successful Claims",value = success)
@@ -421,12 +422,12 @@ class Hoyoverse(commands.Cog):
             await message.publish()
         await ctx.reply(embed = discord.Embed(description = f"Successfully auto redeemed `{code}`!",color = discord.Color.green()))
     
-    @genshin.group(id = "510", help = "Genshin daily check-in management.")
+    @genshin.group(extras = {"id": "510"}, help = "Genshin daily check-in management.")
     async def daily(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin daily` to get a list of commands.")
     
-    @daily.command(id = "511",help = "Claim the daily reward for the day.")
+    @daily.command(extras = {"id": "511"},help = "Claim the daily reward for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to claim the daily for.")
     async def claim(self,ctx,member:discord.Member = None):
@@ -443,7 +444,7 @@ class Hoyoverse(commands.Cog):
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
     
-    @daily.command(id = "512",help = "Last 30 daily reward history information.")
+    @daily.command(extras = {"id": "512"},help = "Last 30 daily reward history information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",limit = "The amount of days to pull up inforamtion for.")
     async def history(self,ctx,limit: commands.Range[int,0] = None,member:discord.Member = None):
@@ -462,7 +463,7 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @genshin.group(id = "513", help = "View monthly diary information.")
+    @genshin.group(extras = {"id": "513"}, help = "View monthly diary information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.", month = "The numerical month to pull information for.")
     async def diary(self,ctx,month: commands.Range[int,1,12] = None,member:discord.Member = None):
@@ -483,7 +484,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(id = "514", help = "View player character data.")
+    @genshin.command(extras = {"id": "514"}, help = "View player character data.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def characters(self,ctx,member:discord.Member = None):
@@ -502,12 +503,12 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @genshin.group(id = "515", help = "Do cost calculations for Genshin characters, weapons, and artifacts.")
+    @genshin.group(extras = {"id": "515"}, help = "Do cost calculations for Genshin characters, weapons, and artifacts.")
     async def calculator(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin calculator` to get a list of commands.")
     
-    @calculator.command(id = "516",help = "Do character leveling calculations")
+    @calculator.command(extras = {"id": "516"},help = "Do character leveling calculations")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(character = "The character to do calculations for.",startlevel = "The starting level of said character.",endlevel = "The ending level of said character.")
     async def character(self,ctx,character:str,startlevel: app_commands.Range[int, 1, 90],endlevel:app_commands.Range[int, 1, 90]):
@@ -567,7 +568,7 @@ class Hoyoverse(commands.Cog):
             for character in characters if current.lower() in character.lower()
         ][:10]
 
-    @calculator.command(id = "517",help = "Do weapon leveling calculations")
+    @calculator.command(extras = {"id": "517"},help = "Do weapon leveling calculations")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(weapon = "The weapon to do calculations for.",startlevel = "The starting level of said weapon.",endlevel = "The ending level of said weapon.")
     async def weapon(self,ctx,weapon:str,startlevel: app_commands.Range[int, 1, 90],endlevel:app_commands.Range[int, 1, 90]):
@@ -627,7 +628,7 @@ class Hoyoverse(commands.Cog):
             for weapon in weapons if current.lower() in weapon.lower()
         ][:10]
 
-    @calculator.command(id = "518",help = "Do artifact leveling calculations")
+    @calculator.command(extras = {"id": "518"},help = "Do artifact leveling calculations")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(artifact = "The artifact to do calculations for.",startlevel = "The starting level of said artifact.",endlevel = "The ending level of said artifact.")
     async def artifact(self,ctx,artifact:str,startlevel: app_commands.Range[int, 0, 20],endlevel:app_commands.Range[int, 0, 20]):
@@ -687,7 +688,7 @@ class Hoyoverse(commands.Cog):
             for artifact in artifacts if current.lower() in artifact.lower()
         ][:10]
 
-    @calculator.command(id = "519",help = "Do character talent leveling calculations")
+    @calculator.command(extras = {"id": "519"},help = "Do character talent leveling calculations")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(character = "The character to do calculations for.",talenttype = "The type of talent to do calculations for.",startlevel = "The starting level of said talent.",endlevel = "The ending level of said talent.")
     async def talents(self,ctx,character:str,talenttype: Literal['Attack','Skill','Burst'],startlevel: app_commands.Range[int, 1, 9],endlevel:app_commands.Range[int, 1, 10]):
@@ -756,7 +757,7 @@ class Hoyoverse(commands.Cog):
             for character in characters if current.lower() in character.lower()
         ][:10]
 
-    @genshin.command(id = "520",help = "Set Genshin authkey in the bot.")
+    @genshin.command(extras = {"id": "520"},help = "Set Genshin authkey in the bot.")
     async def authkey(self,ctx):
         embed = discord.Embed(title = "Hoyoverse Authkey Linking",description = "This is required to make any wish/transaction commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
         embed.add_field(name = "Getting Authkey",value = "1. Open up wish history in game.\n2. Open Windows Powershell from your start menu.\n3. Copy the script from the button 'Get Script', and paste it in the Powershell window.\n4. Click the button below, and paste the link into the dialogue box.",inline = False)
@@ -766,7 +767,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @genshin.command(id = "521",help = "Command to track your resin spending within the past 6 months.")
+    @genshin.command(extras = {"id": "521"},help = "Command to track your resin spending within the past 6 months.")
     @commands.cooldown(1,120,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def resintracker(self,ctx,member:discord.Member = None):
@@ -810,7 +811,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(id = "522",help = "Fun command to measure the whaleness of a member.")
+    @genshin.command(extras = {"id": "522"},help = "Fun command to measure the whaleness of a member.")
     @commands.cooldown(1,120,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def whalemeter(self,ctx,member:discord.Member = None):
@@ -903,7 +904,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await message.edit(embed = embed)
     
-    @genshin.command(id = "523",help = "View wishing data.")
+    @genshin.command(extras = {"id": "523"},help = "View wishing data.")
     @commands.cooldown(1,60,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",limit = "The amount of wishes to pull up.")
     async def wishes(self,ctx,limit:int = 2000,member:discord.Member = None):
@@ -924,13 +925,13 @@ class Hoyoverse(commands.Cog):
                 else:
                     stats["3"].append(wish)
                 
-                if wish.banner_type == genshin.models.BannerType.STANDARD:
+                if wish.banner_type == genshin.models.GenshinBannerType.STANDARD:
                     stats["s"].append(wish)
-                elif wish.banner_type == genshin.models.BannerType.CHARACTER:
+                elif wish.banner_type == genshin.models.GenshinBannerType.CHARACTER:
                     stats["c"].append(wish)
-                elif wish.banner_type == genshin.models.BannerType.WEAPON:
+                elif wish.banner_type == genshin.models.GenshinBannerType.WEAPON:
                     stats["w"].append(wish)
-                elif wish.banner_type == genshin.models.BannerType.NOVICE:
+                elif wish.banner_type == genshin.models.GenshinBannerType.NOVICE:
                     stats["n"].append(wish)
             embed = discord.Embed(title = f"Wish history for {member}",description = f"Looking at the past `{len(data)}` wishes",color = discord.Color.random())
             embed.add_field(name = "Total Statistics",value = f'Total Pulls: <:intertwined:990336430934999040> {len(data)}\nPrimogem Equivalent: <:primogem:990335900280041472> {len(data)*160}\nAverage Pity: <:acquaint:990336486723432490> {int(len(data)/len(stats["5"])) if len(stats["5"]) > 0 else "None"}',inline = False)
@@ -942,7 +943,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @genshin.command(id = "524",help = "Use Enka network to pull up character builds.")
+    @genshin.command(extras = {"id": "524"},help = "Use Enka network to pull up character builds.")
     @commands.cooldown(1,60,commands.BucketType.user)
     @app_commands.describe(uid = "The in-game UID for the user to check builds for")
     async def enka(self,ctx,uid:int):
@@ -958,17 +959,17 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @commands.hybrid_group(id = "525")
+    @commands.hybrid_group(extras = {"id": "525"},help = "The command group to see Honkai Impact 3rd information.")
     async def honkaiimpact3rd(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaiimpact3rd` to get a list of commands.")
         
-    @honkaiimpact3rd.group(id = "526",name = "daily",help = "Honkai Impact 3rd daily checkin management.")
+    @honkaiimpact3rd.group(extras = {"id": "526"},name = "daily",help = "Honkai Impact 3rd daily checkin management.")
     async def honkaidaily(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaiimpact3rd daily` to get a list of commands.")
     
-    @honkaidaily.command(id = "527",name = "claim", help = "Claim daily rewards for the day.")
+    @honkaidaily.command(extras = {"id": "527"},name = "claim", help = "Claim daily rewards for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def honkaiclaim(self,ctx,member:discord.Member = None):
@@ -985,7 +986,7 @@ class Hoyoverse(commands.Cog):
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
     
-    @honkaidaily.command(id = "528",name = "history",help = "Last 30 daily reward history information.")
+    @honkaidaily.command(extras = {"id": "528"},name = "history",help = "Last 30 daily reward history information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",limit = "The amount of days to pull information for.")
     async def honkaihistory(self,ctx,limit: commands.Range[int,0] = None,member:discord.Member = None):
@@ -1004,7 +1005,7 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @honkaiimpact3rd.command(id = "529",name = "battlesuits", help = "View player battlesuit data.")
+    @honkaiimpact3rd.command(extras = {"id": "529"},name = "battlesuits", help = "View player battlesuit data.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def battlesuits(self,ctx,member:discord.Member = None):
@@ -1023,7 +1024,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @honkaiimpact3rd.command(id = "530",name = "oldabyss", help = "View abyss data for either Quantum Singularis or Dirac Sea.")
+    @honkaiimpact3rd.command(extras = {"id": "530"},name = "oldabyss", help = "View abyss data for either Quantum Singularis or Dirac Sea.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def oldabyss(self,ctx,member:discord.Member = None):
@@ -1044,7 +1045,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @honkaiimpact3rd.command(id = "531",name = "memorialarena", help = "View Memorial Arena data for the current cycle.")
+    @honkaiimpact3rd.command(extras = {"id": "531"},name = "memorialarena", help = "View Memorial Arena data for the current cycle.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def memorialarena(self,ctx,member:discord.Member = None):
@@ -1065,7 +1066,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
 
-    @honkaiimpact3rd.command(id = "532",name = "elysianrealm", help = "View Elysian Realm data for the current cycle.")
+    @honkaiimpact3rd.command(extras = {"id": "532"},name = "elysianrealm", help = "View Elysian Realm data for the current cycle.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def elysianrealm(self,ctx,member:discord.Member = None):
@@ -1086,7 +1087,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
 
-    @honkaiimpact3rd.command(id = "533",name = "superstringabyss", help = "View Superstring Abyss for the current cycle.")
+    @honkaiimpact3rd.command(extras = {"id": "533"},name = "superstringabyss", help = "View Superstring Abyss for the current cycle.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def superstringabyss(self,ctx,member:discord.Member = None):
@@ -1107,17 +1108,17 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @commands.hybrid_group(id = "534")
+    @commands.hybrid_group(extras = {"id": "534"},help = "The command group to manage Honkai: Star Rail information.")
     async def honkaistarrail(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaistarrail` to get a list of commands.")
     
-    @honkaistarrail.group(id = "535", name = "daily",help = "Honkai Star Rail daily check-in management.")
+    @honkaistarrail.group(extras = {"id": "535"}, name = "daily",help = "Honkai Star Rail daily check-in management.")
     async def honkaistardaily(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaistarrail daily` to get a list of commands.")
     
-    @honkaistarrail.command(id = "536",name = "claim",help = "Claim the daily reward for the day.")
+    @honkaistarrail.command(extras = {"id": "536"},name = "claim",help = "Claim the daily reward for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to claim the daily for.")
     async def honkaistarclaim(self,ctx,member:discord.Member = None):
@@ -1134,7 +1135,7 @@ class Hoyoverse(commands.Cog):
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(id = "537",name = "history",help = "Last 30 daily reward history information.")
+    @honkaistarrail.command(extras = {"id": "537"},name = "history",help = "Last 30 daily reward history information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",limit = "The amount of days to pull up inforamtion for.")
     async def honkaistarhistory(self,ctx,limit: commands.Range[int,0] = None,member:discord.Member = None):
@@ -1153,7 +1154,7 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @honkaistarrail.command(id = "538",name = "redeem",help = "Redeem a code for yourself or a friend.")
+    @honkaistarrail.command(extras = {"id": "538"},name = "redeem",help = "Redeem a code for yourself or a friend.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def honkaistarredeem(self,ctx,code:str,member:discord.Member = None):
@@ -1170,7 +1171,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(id = "539",name = "massredeem",help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
+    @honkaistarrail.command(extras = {"id": "539"},name = "massredeem",help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
     @bot_mod_check()
     @commands.cooldown(1,10,commands.BucketType.user)
     @app_commands.describe(code = "The code to redeem.")
@@ -1180,7 +1181,7 @@ class Hoyoverse(commands.Cog):
             success,error = 0,0
             for account in accounts:
                 hoyosettings = account.get("hoyoverse",{}).get("settings",{})
-                if "ltuid" in hoyosettings and "cookie_token" in hoyosettings:
+                if "ltuid" in hoyosettings and "cookietoken" in hoyosettings:
                     account_id,cookie_token = hoyosettings['ltuid'], hoyosettings['cookietoken']
                     if account_id and cookie_token:
                         account_id = rsa.decrypt(binascii.unhexlify(account_id),self.private).decode('utf8')
@@ -1189,7 +1190,8 @@ class Hoyoverse(commands.Cog):
                         client = genshin.Client({'account_id':account_id,'cookie_token':cookie_token})
                         await client.redeem_code(code,game = genshin.Game.STARRAIL)
                         success += 1
-                    except:
+                    except Exception as e:
+                        print(e)
                         error += 1
             embed = discord.Embed(title = "Honkai: Star Rail Promotion Code Redeemed!",description = f"**{ctx.author}** has redeemed the code `{code}` for all users who have auto redeem setup!",color = discord.Color.random())
             embed.add_field(name = "Successful Claims",value = success)
@@ -1202,7 +1204,7 @@ class Hoyoverse(commands.Cog):
             await message.publish()
         await ctx.reply(embed = discord.Embed(description = f"Successfully auto redeemed `{code}`!",color = discord.Color.green()))
     
-    @honkaistarrail.command(id = "543",name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")
+    @honkaistarrail.command(extras = {"id": "543"},name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")
     async def hsauthkey(self,ctx):
         embed = discord.Embed(title = "Honkai: Star Rail Authkey Linking",description = "This is required to make any warp commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
         embed.add_field(name = "Getting Authkey",value = "1. Open up warp history in game.\n2. Open Windows Powershell from your start menu.\n3. Copy the script from the button 'Get Script', and paste it in the Powershell window.\n4. Click the button below, and paste the link into the dialogue box.",inline = False)
@@ -1211,8 +1213,50 @@ class Hoyoverse(commands.Cog):
         view = HSAuthkeyView(ctx)
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
+    
+    '''
+    Will deal with this later
+    @honkaistarrail.command(extras = {"id":"544"},help = "Simple embeds that can show you your warping history.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to see warp history for.")
+    async def warps2(self,ctx,limit:int = 2000,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.auth_privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their warp/transaction data set to private!")
+        authkey = await self.get_hauthkey(ctx,member) 
+        if not authkey: return
+        async with ctx.typing():
+            data = await self.standardclient.warp_history(authkey = authkey,limit = limit).flatten()
+            hoyoversestore.STORAGE_ONE = data
+        data = hoyoversestore.STORAGE_ONE
+        if data[0].banner_type == genshin.models.genshin.gacha.StarRailBannerType.CHARACTER:
+            print("no")
+        stats = {"5":[],"4":[],"5Character":[],"5Light Cone":[],"4Character":[],"4Light Cone":[],"3":[],"c":[],"w":[],"s":[]}
+        for warp in data:
+            if warp.rarity == 5:
+                stats["5"].append(warp)
+                stats[f"5{warp.type}"].append(warp)
+            elif warp.rarity == 4:
+                stats["4"].append(warp)
+                stats[f"4{warp.type}"].append(warp)
+            else:
+                stats["3"].append(warp)
 
-    @honkaistarrail.command(id = "544",help = "Simple embeds that can show you your warping history.")
+            if warp.banner_type == genshin.models.genshin.gacha.StarRailBannerType.CHARACTER:
+                stats["c"].append(warp)
+            elif warp.banner_type == genshin.models.genshin.gacha.StarRailBannerType.WEAPON:
+                stats["w"].append(warp)
+            elif warp.banner_type == genshin.models.genshin.gacha.StarRailBannerType.STANDARD:
+                stats["s"].append(warp)
+            
+
+        print(len(stats["5"]),len(stats["4"]),len(stats["3"]))
+        print(len(stats["c"]),len(stats["w"]),len(stats["s"]))
+        print(stats["5"])
+        await ctx.reply("Done")
+    '''             
+
+    @honkaistarrail.command(extras = {"id": "544"},help = "Simple embeds that can show you your warping history.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to see warp history for.")
     async def warps(self,ctx,member:discord.Member = None):
@@ -1346,7 +1390,7 @@ class SettingsView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     @discord.ui.button(label = "Genshin UID")
@@ -1470,7 +1514,7 @@ class SuperstringAbyssView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class MemorialArenaSelect(discord.ui.Select):
@@ -1509,7 +1553,7 @@ class MemorialArenaView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class ElysianRealmSelect(discord.ui.Select):
@@ -1547,7 +1591,7 @@ class ElysianRealmView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class OldAbyssSelect(discord.ui.Select):
@@ -1583,7 +1627,7 @@ class OldAbyssView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class BattlesuitSelect(discord.ui.Select):
@@ -1624,7 +1668,7 @@ class BattlesuitView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class EnkaCharacterSelect(discord.ui.Select):
@@ -1664,7 +1708,7 @@ class EnkaCharacterView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class WishSelect(discord.ui.Select):
@@ -1748,7 +1792,7 @@ class WishView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class WarpView(discord.ui.View):
@@ -1766,7 +1810,7 @@ class WarpView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class WarpSelect(discord.ui.Select):
@@ -1962,7 +2006,7 @@ class CharacterView(discord.ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
 
 class DailyClaimPageSource(menus.ListPageSource):
@@ -1999,7 +2043,7 @@ class AbyssView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):
@@ -2273,7 +2317,7 @@ class StatsView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):
@@ -2452,7 +2496,7 @@ class LinkView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):
@@ -2514,7 +2558,7 @@ class AuthkeyView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):
@@ -2552,7 +2596,7 @@ class HSAuthkeyView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):

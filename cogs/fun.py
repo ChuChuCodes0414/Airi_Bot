@@ -82,7 +82,7 @@ class Fun(commands.Cog):
             return False
         return self.client.db.user_data.update_one({"_id":member.id},{"$pull":{"fun.badges":badge}})
     
-    @commands.hybrid_command(id = "40",name = "8ball", help = "The magic 8ball...it's always right.")
+    @commands.hybrid_command(extras = {"id": "40"},name = "8ball", help = "The magic 8ball...it's always right.")
     @commands.cooldown(1, 10,commands.BucketType.user)
     @app_commands.describe(question = "Your important question to ask the 8ball.")
     async def _8ball(self,ctx,*,question):
@@ -96,7 +96,7 @@ class Fun(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "41", help = "What's your iq level?")
+    @commands.hybrid_command(extras = {"id": "41"}, help = "What's your iq level?")
     @commands.cooldown(1, 10,commands.BucketType.user)
     @app_commands.describe(person = "The person to check the iq level of")
     async def iq(self,ctx,person = None):
@@ -118,7 +118,7 @@ class Fun(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "42", help = "How much of a nab are you? Well...")
+    @commands.hybrid_command(extras = {"id": "42"}, help = "How much of a nab are you? Well...")
     @commands.cooldown(1,10,commands.BucketType.user)
     @app_commands.describe(person = "The person to check the nabrate of.")
     async def nabrate(self,ctx,person = None):
@@ -140,7 +140,7 @@ class Fun(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "43", help = "Drop a prize for other people to pickup!")
+    @commands.hybrid_command(extras = {"id": "43"}, help = "Drop a prize for other people to pickup!")
     @commands.cooldown(1,10,commands.BucketType.user)
     @eman_role_check()
     @app_commands.describe(item = "The item that you are dropping",channel = "Where the item should be dropped",word = "The word that should be typed to pick it up")
@@ -172,7 +172,7 @@ class Fun(commands.Cog):
         await message.reply(embed = discord.Embed(description = f"Claimed by {msg.author.mention} :tada:",color = discord.Color.random()))
         await ctx.reply(embed = discord.Embed(description = f"{ctx.author.mention} your prize was claimed! Please give {item} to {msg.author.mention}",color = discord.Color.green()))
 
-    @commands.hybrid_command(id = "44",aliases = ['sos'],help = "Host a giveaway with a split or steal function!")
+    @commands.hybrid_command(extras = {"id": "44"},aliases = ['sos'],help = "Host a giveaway with a split or steal function!")
     @eman_role_check()
     @commands.max_concurrency(1,commands.BucketType.channel)
     @app_commands.describe(time = "The time for the entry giveaway",requirements = "Role requirements, bypasses, and blacklists",prize = "The prize to be won")
@@ -268,7 +268,7 @@ class Fun(commands.Cog):
             return await message.reply(embed = discord.Embed(description = f"**{winners[0].mention}** decided to steal while **{winners[1].mention}** decide to split. GG!",color = discord.Color.gold()))
         return await message.reply(embed = discord.Embed(description = f"**{winners[1].mention}** decided to steal while **{winners[0].mention}** decide to split. GG!",color = discord.Color.gold()))
 
-    @commands.hybrid_command(id = "45", aliases = ['gtn'], help = "Host a quick guess the number game.")
+    @commands.hybrid_command(extras = {"id": "45"}, aliases = ['gtn'], help = "Host a quick guess the number game.")
     @eman_role_check()
     @commands.max_concurrency(1,commands.BucketType.channel)
     @app_commands.describe(start = "The starting number.", end = "The ending number.", target = "The correct answer.")
@@ -301,7 +301,7 @@ class Fun(commands.Cog):
         embed = discord.Embed(description = f"{message.author.mention} guessed the number! The number was **{target}**.")
         await message.reply(embed = embed)
 
-    @commands.hybrid_command(id = "46",help = "How good is your memory?")
+    @commands.hybrid_command(extras = {"id": "46"},help = "How good is your memory?")
     async def colorgame(self,ctx):
         order = []
         embed = discord.Embed(title = f"Setting Up {ctx.author}'s Colorgame...",description = f"The bot will show you a sequence of colors by enabling and disabling buttons. After showing the sequence, it is your turn to press the buttons in the same sequence!",color = discord.Color.random())
@@ -344,7 +344,7 @@ class Fun(commands.Cog):
                 await message.edit(embed = embed,view = view)
                 break
     
-    @commands.hybrid_command(id = "47",help = "View your badges!")
+    @commands.hybrid_command(extras = {"id": "47"},help = "View your badges!")
     @app_commands.describe(member = "The member to check the profile of")
     async def profile(self,ctx,member:discord.Member = None):
         member = member or ctx.author

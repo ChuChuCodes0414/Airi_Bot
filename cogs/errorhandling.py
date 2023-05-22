@@ -26,6 +26,13 @@ class ErrorHandling(commands.Cog):
             except:
                 pass
     
+    async def send_ierror_embed(self,interaction,message):
+        embed = discord.Embed(description = message,color = discord.Color.red())
+        try:
+            await interaction.response.send_message(embed= embed,ephemeral = True)
+        except:
+            pass
+
     def get_command_signature(self, command,context):
         parent = command.parent
         entries = []
@@ -84,7 +91,11 @@ class ErrorHandling(commands.Cog):
             message = f"A custom command check failed.\nContext: {error.message}"
             await self.send_error_embed(ctx,message)
             return
-
+        
+        if isinstance(error,commands.CheckFailure):
+            await self.send_error_embed(ctx,"A custom rules check failed.\nServer managers can check rules with `/rules view`.")
+            return
+        
         if isinstance(error, commands.MaxConcurrencyReached):
             message = f"**Max Concurrency Reached!**\nThis command can be used `{error.number}` time(s) per `{error.per.name}` concurrently."
             await self.send_error_embed(ctx,message)
@@ -235,6 +246,81 @@ class ErrorHandling(commands.Cog):
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+@commands.Cog.listener()
+async def on_error(self, interaction, error):
+    error = getattr(error, 'original', error)
+    
+    if isinstance(error, discord.app_commands.CommandInvokeError):
+        error = error.original
+
+    if isinstance(error, discord.app_commands.MissingPermissions):
+        missing = [perm.replace('_', ' ').replace('guild', 'server').title() for perm in error.missing_permissions]
+        if len(missing) > 2:
+            fmt = '{}, and {}'.format("**, **".join(missing[:-1]), missing[-1])
+        else:
+            fmt = ' and '.join(missing)
+        message = 'You need the **{}** permission(s) to use this command.'.format(fmt)
+        await self.send_ierror_embed(interaction,message)
+        return
+    
+    if isinstance(error, discord.app_commands.CommandOnCooldown):
+        await self.send_ierror_embed(interaction,"This command is on cooldown, please retry in `{}` seconds.".format(math.ceil(error.retry_after)))
+        return
+    
+    if isinstance(error,discord.Forbidden):
+        await self.send_ierror_embed(interaction,"Looks like I am missing permissions to complete your command.")
+        return
+    
+    if isinstance(error, discord.app_commands.BotMissingPermissions):
+        missing = [perm.replace('_', ' ').replace('guild', 'server').title() for perm in error.missing_perms]
+        if len(missing) > 2:
+            fmt = '{}, and {}'.format("**, **".join(missing[:-1]), missing[-1])
+        else:
+            fmt = ' and '.join(missing)
+        _message = 'I need the **{}** permission(s) to run this command.'.format(fmt)
+        await self.send_ierror_embed(interaction,_message)
+        return
+
+    errorid = uuid.uuid4()
+    embed = discord.Embed(title = "Uh oh! Seems like you got an uncaught excpetion.",description = "I have no idea how you got here, but it seems your error was not traced! If this occurs frequently, please feel free to join the [support server](https://discord.com/invite/9pmGDc8pqQ) and report the bug!",color = discord.Color.red())
+    
+    if len(''.join(traceback.format_exception_only(type(error), error))) < 4000:
+        embed.add_field(name = "Error Details:",value = f"```{''.join(traceback.format_exception_only(type(error), error))}```")
+    else:
+        embed.add_field(name = "Error Details:",value = f"```Error details are too long to display! Join the support server with your error code for more details.```")
+    
+    embed.add_field(name = "Error ID",value = errorid,inline = False)
+    embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+    
+    try:
+        await interaction.response.send_message(embed = embed)
+    except:
+        try:
+            await interaction.followup.send(embed = embed)
+        except:
+            pass
+
+    channel = self.client.get_channel(1088681647525855252)
+    
+    embed = discord.Embed(title = f'⚠ There was an error that was not traced!',description = f'On Command: {interaction.command.name}',color = discord.Color.red())
+    embed.add_field(name = "Command Invoke Details",value = f'**Guild Info:** {interaction.guild.name} ({interaction.guild.id})\n**User Information:** {interaction.user.name} | {interaction.user.mention} ({interaction.user.id})\n**Error ID:** {errorid}',inline = False)
+    errordetails = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
+    if len(errordetails) < 1000:
+        embed.add_field(name = "Command Error Log",value = f'```{errordetails}```')
+        embed.set_footer(text = f'{interaction.guild.name}',icon_url = interaction.guild.icon)
+        embed.timestamp = datetime.datetime.now()
+        await channel.send(embed = embed)
+    else:
+        f =  open(f'errorlogging\{errorid}.txt', 'w')
+        f.write(errordetails)
+        embed.set_footer(text = f'{interaction.guild.name}',icon_url = interaction.guild.icon)
+        embed.timestamp = datetime.datetime.now()
+        f.close()
+        await channel.send(embed = embed,file = discord.File("errorlogging\\" + str(errorid) + ".txt"))
+        os.remove(f"errorlogging\{errorid}.txt")
+
+    print('Ignoring exception in command {}:'.format(interaction.command), file=sys.stderr)
+    traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 async def setup(client):
     await client.add_cog(ErrorHandling(client))

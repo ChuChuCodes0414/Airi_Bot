@@ -86,7 +86,7 @@ class Utility(commands.Cog):
     
     @commands.Cog.listener()
     async def on_message(self,message):
-        if message.author.id == 302050872383242240 and str(message.channel.id) == self.active.get(str(message.guild.id),None):
+        if message.author.id == 302050872383242240 and message.channel.id == self.active.get(str(message.guild.id),None):
             if len(message.embeds) > 0:
                 dict = message.embeds[0].to_dict()
                 if dict["description"].startswith("Bump done!"):
@@ -152,7 +152,7 @@ class Utility(commands.Cog):
             except:
                 pass
         
-    @commands.hybrid_command(id = "400",name= "memberinfo",help = "View some basic information about a member.")
+    @commands.hybrid_command(extras = {"id": "400"},name= "memberinfo",help = "View some basic information about a member.")
     @app_commands.describe(member = "The user to lookup information for.")
     async def memberinfo(self, ctx: commands.Context, member: discord.Member = None) -> None:
         member = member or ctx.author
@@ -177,7 +177,7 @@ class Utility(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await interaction.response.send_message(embed = embed,ephemeral = True)
     
-    @commands.hybrid_command(id = "401",name = "serverinfo",help = "View some basic information about the current server.")
+    @commands.hybrid_command(extras = {"id": "401"},name = "serverinfo",help = "View some basic information about the current server.")
     async def serverinfo(self, ctx: commands.Context) -> None:
         embed = discord.Embed(title = f"Server Information for {ctx.guild.name}",description = ctx.guild.id,color = discord.Color.random())
         embed.add_field(name = "Creation Date",value = f"<t:{int(ctx.guild.created_at.replace(tzinfo=datetime.timezone.utc).timestamp())}:f> (<t:{int(ctx.guild.created_at.replace(tzinfo=datetime.timezone.utc).timestamp())}:R>)",inline = False)
@@ -193,7 +193,7 @@ class Utility(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "402",name = "whois",help = "View some basic information for any discord user.")
+    @commands.hybrid_command(extras = {"id": "402"},name = "whois",help = "View some basic information for any discord user.")
     @app_commands.describe(user = "The user to lookup information for.")
     async def whois(self, ctx: commands.Context, user: discord.User = None) -> None:
         user = user or ctx.author
@@ -206,7 +206,7 @@ class Utility(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "403",help = "Do some math expressions!")
+    @commands.hybrid_command(extras = {"id": "403"},help = "Do some math expressions!")
     @app_commands.describe(expression = "The mathematical expression to do, like 1+1.")
     async def math(self, ctx: commands.Context,*,expression):
         try:
@@ -217,12 +217,12 @@ class Utility(commands.Cog):
         except:
             raise errors.ParsingError(message = f"I could not process your input!")
         
-    @commands.hybrid_group(id = "404",name = "afk")
+    @commands.hybrid_group(extras = {"id": "404"},name = "afk")
     async def afkbase(self, ctx: commands.Context) -> None:
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help afk` to get a list of commands.")
     
-    @afkbase.command(id = "405",name = "set",help = "Set your server afk to let other people know you aren't there!")
+    @afkbase.command(extras = {"id": "405"},name = "set",help = "Set your server afk to let other people know you aren't there!")
     @app_commands.describe(message = "The message to be displayed if someone mentions you.")
     async def set(self, ctx: commands.Context, *,message: str = None) -> None:
         message = message or "AFK"
@@ -258,7 +258,7 @@ class Utility(commands.Cog):
             except:
                 pass
     
-    @afkbase.command(id = "406",name = "remove",help = "As a moderator, remove the afk of a member.")
+    @afkbase.command(extras = {"id": "406"},name = "remove",help = "As a moderator, remove the afk of a member.")
     @app_commands.describe(member = "The member to remove the afk from.")
     @commands.has_permissions(moderate_members = True)
     async def remove(self, ctx: commands.Context, member: discord.Member) -> None:
@@ -269,12 +269,12 @@ class Utility(commands.Cog):
         else:
             raise errors.PreRequisiteError(messsage = f"**{member}** does not have an afk status set!")
 
-    @commands.hybrid_group(id = "407",name = "time")
+    @commands.hybrid_group(extras = {"id": "407"},name = "time")
     async def time(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help time` to get a list of commands.")
     
-    @time.command(id = "408",name = "set",help = "Set up your timezone in the bot.")
+    @time.command(extras = {"id": "408"},name = "set",help = "Set up your timezone in the bot.")
     @app_commands.describe(timezone = "Your timezone in tz database format.")
     async def timeset(self,ctx:commands.Context,timezone: str):
         if timezone not in pytz.all_timezones:
@@ -284,7 +284,7 @@ class Utility(commands.Cog):
         there_now = utc_now.astimezone(pytz.timezone(timezone))
         await ctx.reply(embed = discord.Embed(description = f"I have set your timezone as **{timezone}**, where it should be **{there_now.strftime('%A, %B %d, %Y %I:%M %p (utc%z)')}**",color = discord.Color.green()))
 
-    @time.command(id = "409",name = "me",help = "Check your own time, even though you could look at a clock nearby.")
+    @time.command(extras = {"id": "409"},name = "me",help = "Check your own time, even though you could look at a clock nearby.")
     async def timeme(self,ctx:commands.Context):
         raw = self.client.db.user_data.find_one({"_id":ctx.author.id},{"utility.timezone":1})
         timezone = methods.query(data = raw,search = ["utility","timezone"])
@@ -296,7 +296,7 @@ class Utility(commands.Cog):
         there_now = utc_now.astimezone(pytz.timezone(timezone))
         await ctx.reply(embed = discord.Embed(description = f"For **{ctx.author}** in **{timezone}**\nIt is currently **{there_now.strftime('%A, %B %d, %Y %I:%M %p (utc%z)')}**\nYour Local Time: <t:{int(utc_now.replace(tzinfo=datetime.timezone.utc).timestamp())}:F>",color = discord.Color.green()))
 
-    @time.command(id = "410",name = "check",help = "Check someone else's time, because they need to go to bed.")
+    @time.command(extras = {"id": "410"},name = "check",help = "Check someone else's time, because they need to go to bed.")
     @app_commands.describe(member = "The member to check the time of.")
     async def timecheck(self,ctx:commands.Context, member: discord.Member):
         raw = self.client.db.user_data.find_one({"_id":member.id},{"utility.timezone":1})
@@ -309,12 +309,12 @@ class Utility(commands.Cog):
         there_now = utc_now.astimezone(pytz.timezone(timezone))
         await ctx.reply(embed = discord.Embed(description = f"For **{member}** in **{timezone}**\nIt is currently **{there_now.strftime('%A, %B %d, %Y %I:%M %p (utc%z)')}**\nYour Local Time: <t:{int(utc_now.replace(tzinfo=datetime.timezone.utc).timestamp())}:F>",color = discord.Color.green()))
 
-    @commands.hybrid_group(id = "411",name = "react",help = "Manage auto reactions for your server.")
+    @commands.hybrid_group(extras = {"id": "411"},name = "react",help = "Manage auto reactions for your server.")
     async def react(self, ctx: commands.Context) -> None:
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message =  "You need to specify a subcommand!\nUse `/help react` to get a list of commands.")
     
-    @react.command(id = "412",name = "add",help = "Add an auto reaction to a word or phrase!")
+    @react.command(extras = {"id": "412"},name = "add",help = "Add an auto reaction to a word or phrase!")
     @app_commands.describe(word = "The word to be reacted to.")
     @app_commands.describe(emoji = "The emoji to react with")
     @commands.has_permissions(moderate_members = True)
@@ -349,7 +349,7 @@ class Utility(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @react.command(id = "413",name = "remove",help = "Remove an auto reaction to a word or phrase!")
+    @react.command(extras = {"id": "413"},name = "remove",help = "Remove an auto reaction to a word or phrase!")
     @app_commands.describe(word = "The word to be reacted to.")
     @app_commands.describe(emoji = "The emoji to react with")
     @commands.has_permissions(moderate_members = True)
@@ -379,7 +379,7 @@ class Utility(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @react.command(id = "414",name = "show",help = "Show all autoreactions pertaining to a specific word.")
+    @react.command(extras = {"id": "414"},name = "show",help = "Show all autoreactions pertaining to a specific word.")
     @app_commands.describe(word = "The word to look up reactions for.")
     @commands.has_permissions(moderate_members = True)
     async def show(self,ctx: commands.Context, word: str) -> None:
@@ -397,7 +397,7 @@ class Utility(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @react.command(id = "415",name = "list",help = "List all the words that have auto reacts.")
+    @react.command(extras = {"id": "415"},name = "list",help = "List all the words that have auto reacts.")
     @commands.has_permissions(moderate_members = True)
     async def list(self,ctx: commands.Context) -> None:
         raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"utility.ar":1})

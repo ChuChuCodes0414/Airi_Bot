@@ -54,18 +54,20 @@ class EventTracking(commands.Cog):
         else:
             return {},{}
     
-    @commands.hybrid_group(id = "30")
+    @commands.hybrid_group(extras = {"id": "30"}, help = "The command to manage events.")
     @eman_role_check()
     async def events(self,ctx):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help events` to get a list of commands.")
 
-    @events.command(id = "31",help = "Start an event with a ping and an embed. Increments tracking count by one.")
+    @events.command(extras = {"id": "31"},help = "Start an event with a ping and an embed. Increments tracking count by one.")
     @eman_role_check()
     @app_commands.describe(time = "How long until the event starts.",event = "The name of the event you want to run.",requirement = "Any requirements to participate.",reward = "Any prize for the event",location = "The text channel where the event is going to be.",donor = "The member that donated the prize.", message = "Any messsage you or the donor might have.")
     async def start(self,ctx,time,event,requirement,reward,location:discord.TextChannel,donor:discord.Member,message):
         if ctx.message.type == discord.MessageType.default:
             await ctx.message.delete()
+        
+        await ctx.reply(embed = discord.Embed(description = "Sending announcement..."),ephemeral = True)
         
         timestr = methods.timeparse(time,1,0)
         if isinstance(timestr,str):
@@ -87,25 +89,22 @@ class EventTracking(commands.Cog):
         raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{"settings.eventtracking":1})
         role = methods.query(data = raw, search = ["settings","eventtracking","ping"])
 
-        if ctx.message.type == discord.MessageType.default:
-            await ctx.message.delete()
-
         if role:
-            message = await ctx.send(f"<@{role}> {event} in {location.mention}",embed = embed)
+            message = await ctx.channel.send(f"<@&{role}> {event} in {location.mention}",embed = embed)
         else:
-            message = await ctx.send(embed = embed)
+            message = await ctx.channel.send(embed = embed)
         
         await self.increment_log(ctx,ctx.author,1)
         logging = methods.query(data = raw, search = ["settings","eventtracking","logging"])
         logchannel = ctx.guild.get_channel(logging)
         if logchannel:
             embed = discord.Embed(title=f"Event Recorded for {ctx.author.name}",description = f"{ctx.author.mention}",color = discord.Color.random())
-            embed.add_field(name = "Event Information:",value = f"[Link to Event]({message.jump_url})\nEvent Type: {type}\nEvent Reward: {reward}\nEvent Donor: {donor}")
+            embed.add_field(name = "Event Information:",value = f"[Link to Event]({message.jump_url})\nEvent Type: {event}\nEvent Reward: {reward}\nEvent Donor: {donor}")
             embed.timestamp = datetime.datetime.now()
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             await logchannel.send(embed = embed)
     
-    @events.command(id = "32", help = "Add a certain amount of events to your log.")
+    @events.command(extras = {"id": "32"}, help = "Add a certain amount of events to your log.")
     @eman_role_check()
     @app_commands.describe(amount = "The amount of events you want to log.")
     async def log(self,ctx,amount: commands.Range[int,0]):
@@ -117,7 +116,7 @@ class EventTracking(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
         
-    @events.command(id = "33", help = "Shows the amount of events you or another user has done.")
+    @events.command(extras = {"id": "33"}, help = "Shows the amount of events you or another user has done.")
     @eman_role_check()
     @app_commands.describe(member = "The member you are checking the event count for.")
     async def amount(self,ctx,member:discord.Member = None):
@@ -128,7 +127,7 @@ class EventTracking(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed=embed)
     
-    @events.command(id = "34", aliases = ['eventlb','elb','eleaderboard'], help = "Show the weekly or total events leaderboard")
+    @events.command(extras = {"id": "34"}, aliases = ['eventlb','elb','eleaderboard'], help = "Show the weekly or total events leaderboard")
     @eman_role_check()
     @app_commands.describe(category = "The type of leaderboard you want to check.")
     async def leaderboard(self,ctx,category: Literal['total','weekly'] = None):
@@ -142,7 +141,7 @@ class EventTracking(commands.Cog):
         menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @events.command(id = "35", help = "Reset the weekly event count and show an embed of winners.")
+    @events.command(extras = {"id": "35"}, help = "Reset the weekly event count and show an embed of winners.")
     @commands.has_permissions(administrator= True)
     async def resetweekly(self,ctx):
         embed = discord.Embed(description = "<a:OB_Loading:907101653692456991> Resetting weekly leaderboard! Please wait...",color = discord.Color.yellow())
@@ -158,7 +157,7 @@ class EventTracking(commands.Cog):
         
         await message.edit(embed = embed)                                   
 
-    @events.command(id = "36", help = "Set the event log amount for a specified user.")
+    @events.command(extras = {"id": "36"}, help = "Set the event log amount for a specified user.")
     @commands.has_permissions(administrator= True)
     @app_commands.describe(member = "The member to set the event count for.", events = "How many events the member should have.",category = "The type of event that should be changed.")
     async def set(self, ctx,member:discord.Member,events :commands.Range[int,0],category: Literal['total','weekly'] = None):

@@ -117,7 +117,7 @@ class Dev(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await channel.send(embed = embed)
 
-    @commands.command(id = "00",hidden = True)
+    @commands.command(hidden = True)
     @commands.is_owner()
     async def sync(self,ctx,type:str = None):
         type = type or "global"
@@ -131,7 +131,7 @@ class Dev(commands.Cog):
         
         await ctx.reply(embed = discord.Embed(description = f"Synced `{len(response)}` Commands to `{type}`!",color = discord.Color.green()))
     
-    @commands.command(id = "01",hidden=True)
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def reload(self,ctx,extension):
         await self.client.reload_extension(f'cogs.{extension}')
@@ -147,7 +147,7 @@ class Dev(commands.Cog):
     async def reload_error(self,ctx, error):
         await ctx.reply(embed = discord.Embed(description = f'`{error}`',color = discord.Color.red()))
     
-    @commands.command(id = "02",hidden=True)
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def load(self,ctx,extension):
         await self.client.load_extension(f'cogs.{extension}')
@@ -160,7 +160,7 @@ class Dev(commands.Cog):
     async def load_error(self,ctx, error):
         await ctx.reply(embed = discord.Embed(description = f'`{error}`',color = discord.Color.red()))
     
-    @commands.command(id = "03",hidden=True)
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def unload(self,ctx,extension):
         await self.client.unload_extension(f'cogs.{extension}')

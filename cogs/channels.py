@@ -20,7 +20,7 @@ class Channels(commands.Cog):
     async def on_ready(self):
         print("Channels Category Loaded")
 
-    @commands.hybrid_command(id="201", help="Lockdown the server bassed on the channels that you have setup.")
+    @commands.hybrid_command(extras = {"id":"201"}, help="Lockdown the server bassed on the channels that you have setup.")
     @commands.has_guild_permissions(manage_permissions=True)
     @commands.cooldown(1, 20, commands.BucketType.user)
     @commands.max_concurrency(1, commands.BucketType.guild)
@@ -85,7 +85,7 @@ class Channels(commands.Cog):
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{"settings.channels.lockdown":True}})
         await message.reply(embed = embed)
     
-    @commands.hybrid_command(id="202", help="Unlockdown the server bassed on the channels that you have setup.")
+    @commands.hybrid_command(extras = {"id":"202"}, help="Unlockdown the server bassed on the channels that you have setup.")
     @commands.has_guild_permissions(manage_permissions=True)
     @commands.cooldown(1, 20, commands.BucketType.user)
     @commands.max_concurrency(1, commands.BucketType.guild)
@@ -151,7 +151,7 @@ class Channels(commands.Cog):
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{"settings.channels.lockdown":""}})
         await message.reply(embed = embed)
     
-    @commands.hybrid_command(id="203", help="View lockdown the server bassed on the channels that you have setup.", documentation = "This edits the view channel perm to false.")
+    @commands.hybrid_command(extras = {"id":"203"}, help="View lockdown the server bassed on the channels that you have setup.", documentation = "This edits the view channel perm to false.")
     @commands.has_guild_permissions(manage_permissions=True)
     @commands.cooldown(1, 60, commands.BucketType.user)
     @commands.max_concurrency(1, commands.BucketType.guild)
@@ -216,7 +216,7 @@ class Channels(commands.Cog):
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{"settings.channels.vlockdown":True}})
         await message.reply(embed = embed)
     
-    @commands.hybrid_command(id="204", help="View unlockdown the server bassed on the channels that you have setup.", documentation = "This edits the view channel perm to neutral.")
+    @commands.hybrid_command(extras = {"id":"204"}, help="View unlockdown the server bassed on the channels that you have setup.", documentation = "This edits the view channel perm to neutral.")
     @commands.has_guild_permissions(manage_permissions=True)
     @commands.cooldown(1, 60, commands.BucketType.user)
     @commands.max_concurrency(1, commands.BucketType.guild)
@@ -281,7 +281,7 @@ class Channels(commands.Cog):
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{"settings.channels.vlockdown":""}})
         await message.reply(embed = embed)
 
-    @commands.hybrid_command(id = "205", help = "Lock a channel for everyone or for a role.")
+    @commands.hybrid_command(extras = {"id": "205"}, help = "Lock a channel for everyone or for a role.")
     @commands.has_guild_permissions(manage_permissions = True)
     @app_commands.describe(role = "The role to edit permissions for.")
     @app_commands.describe(channel = "The channel to edit permissions for.")
@@ -299,7 +299,7 @@ class Channels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = self.client.user.name + " | Run /unlock to unlock it again!")
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "206", help = "Set speaking perms to neutral for a channel for everyone or for a role.")
+    @commands.hybrid_command(extras = {"id": "206"}, help = "Set speaking perms to neutral for a channel for everyone or for a role.")
     @commands.has_guild_permissions(manage_permissions = True)
     @app_commands.describe(role = "The role to edit permissions for.")
     @app_commands.describe(channel = "The channel to edit permissions for.")
@@ -317,7 +317,7 @@ class Channels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = self.client.user.name + " | Run /lock to lock it again!")
         await ctx.reply(embed = embed)
 
-    @commands.hybrid_command(id = "207", help = "Unlock a channel for everyone or for a role.")
+    @commands.hybrid_command(extras = {"id": "207"}, help = "Unlock a channel for everyone or for a role.")
     @commands.has_guild_permissions(manage_permissions = True)
     @app_commands.describe(role = "The role to edit permissions for.")
     @app_commands.describe(channel = "The channel to edit permissions for.")
@@ -335,7 +335,7 @@ class Channels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = self.client.user.name + " | Run /lock to lock it again!")
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "208", help = "Viewlock a channel for everyone or for a role.")
+    @commands.hybrid_command(extras = {"id": "208"}, help = "Viewlock a channel for everyone or for a role.")
     @commands.has_guild_permissions(manage_permissions = True)
     @app_commands.describe(role = "The role to edit permissions for.")
     @app_commands.describe(channel = "The channel to edit permissions for.")
@@ -353,7 +353,7 @@ class Channels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = self.client.user.name + " | Run /viewunlock to unlock it again!")
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "209", help = "Set viewing perms to neutral for a channel for everyone or for a role.")
+    @commands.hybrid_command(extras = {"id": "209"}, help = "Set viewing perms to neutral for a channel for everyone or for a role.")
     @commands.has_guild_permissions(manage_permissions = True)
     @app_commands.describe(role = "The role to edit permissions for.")
     @app_commands.describe(channel = "The channel to edit permissions for.")
@@ -371,7 +371,7 @@ class Channels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = self.client.user.name + " | Run /viewlock to lock it again!")
         await ctx.reply(embed = embed)
 
-    @commands.hybrid_command(id = "210", help = "Viewunlock a channel for everyone or for a role.")
+    @commands.hybrid_command(extras = {"id": "210"}, help = "Viewunlock a channel for everyone or for a role.")
     @commands.has_guild_permissions(manage_permissions = True)
     @app_commands.describe(role = "The role to edit permissions for.")
     @app_commands.describe(channel = "The channel to edit permissions for.")
@@ -389,7 +389,7 @@ class Channels(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url,text = self.client.user.name + " | Run /viewlock to lock it again!")
         await ctx.reply(embed = embed)
     
-    @commands.hybrid_command(id = "211",aliases = ['sm'],help ="Change the slowmode of the current channel to the specified amount of seconds.")
+    @commands.hybrid_command(extras = {"id": "211"},aliases = ['sm'],help ="Change the slowmode of the current channel to the specified amount of seconds.")
     @commands.has_guild_permissions(manage_channels= True)
     @app_commands.describe(time = "What time to set the slowmode to.")
     async def slowmode(self,ctx,time):
@@ -399,7 +399,7 @@ class Channels(commands.Cog):
         await ctx.channel.edit(slowmode_delay=time.seconds)
         await ctx.reply(f"Set the slowmode delay in this channel to `{time}` seconds!")
 
-    @commands.hybrid_command(id = "212",help ="Purge messages in the channel.")
+    @commands.hybrid_command(extras = {"id": "212"},help ="Purge messages in the channel.")
     @commands.has_permissions(manage_messages= True)
     @app_commands.describe(amount = "How many messages to be purged")
     async def purge(self,ctx, amount:int):

@@ -18,14 +18,14 @@ class Mod(commands.Cog):
     async def on_ready(self):
         print('Mod Category Loaded.')
     
-    @commands.hybrid_command(id = "71",help = "Echo a message into another channel.")
+    @commands.hybrid_command(extras = {"id": "71"},help = "Echo a message into another channel.")
     @commands.has_permissions(moderate_members = True)
     @app_commands.describe(channel = "The channel to send the message into.",message = "The message to send into the channel")
     async def echo(self,ctx,channel:discord.TextChannel,*,message:str):
         await channel.send(message, allowed_mentions= discord.AllowedMentions(everyone = False, users = True, roles = False))
         await ctx.reply(embed = discord.Embed(description = f"<a:PB_greentick:865758752379240448> Message sent to {channel.mention}!",color = discord.Color.green()), ephemeral = True)
     
-    @commands.hybrid_command(id = "72",help = "Change a member's nickname.")
+    @commands.hybrid_command(extras = {"id": "72"},help = "Change a member's nickname.")
     @commands.has_permissions(manage_nicknames = True) 
     @app_commands.describe(member = "The member to change the nickname of.",nickname = "What to change the nickname to.")
     async def setnick(self,ctx, member:discord.Member,*,nickname = None):
@@ -39,7 +39,7 @@ class Mod(commands.Cog):
         await member.edit(nick=nickname)
         await ctx.reply(embed = discord.Embed(description = f"Edited {member}'s nickname to: `{nickname}`",color = discord.Color.green()))
 
-    @commands.hybrid_command(id = "73",help = "Give/remove a role to someone else.")
+    @commands.hybrid_command(extras = {"id": "73"},help = "Give/remove a role to someone else.")
     @commands.has_permissions(manage_roles = True)
     @app_commands.describe(member = "The member to add or remove a role from.",role = "The role to add or remove.")
     async def role(self,ctx, member:discord.Member,role:discord.Role):
@@ -57,7 +57,7 @@ class Mod(commands.Cog):
             await member.add_roles((role))
             await ctx.reply(embed = discord.Embed(description = f"Added **{role.name}** to **{member}**",color = discord.Color.green()))
 
-    @commands.hybrid_command(id = "74",help = "Timeout a user through the discord timeout function.")
+    @commands.hybrid_command(extras = {"id": "74"},help = "Timeout a user through the discord timeout function.")
     @commands.has_permissions(moderate_members = True)
     @app_commands.describe(member = "The member to timeout.", duration = "The duration of which to have the member timed out.",reason = "Why the member is being timed out.")
     async def timeout(self,ctx,member:discord.Member,duration,*,reason = None):
@@ -77,7 +77,7 @@ class Mod(commands.Cog):
         unix = int(until.replace(tzinfo=datetime.timezone.utc).timestamp())
         await ctx.reply(embed = discord.Embed(description = f"Timed out **{member}** until <t:{unix}:f> (<t:{unix}:R>)",color = discord.Color.green()))
     
-    @commands.hybrid_command(id = "75",help = "Remove the timeout from user through the discord timeout function.")
+    @commands.hybrid_command(extras = {"id": "75"},help = "Remove the timeout from user through the discord timeout function.")
     @commands.has_permissions(moderate_members = True)
     @app_commands.describe(member = "The member to untimeout.",reason = "Why the member is being untimed out.")
     async def untimeout(self,ctx,member:discord.Member,*,reason = None):
@@ -91,7 +91,7 @@ class Mod(commands.Cog):
         await member.edit(timed_out_until = None,reason = reason)
         await ctx.reply(embed = discord.Embed(description = f"Removed timeout from **{member}**",color = discord.Color.green()))
 
-    @commands.hybrid_command(id = "76",aliases = ['k'],help = "Kick a member from the server.")
+    @commands.hybrid_command(extras = {"id": "76"},aliases = ['k'],help = "Kick a member from the server.")
     @commands.has_permissions(kick_members = True) 
     @app_commands.describe(member = "The member that should be kicked.",reason = "Why you are kicking this member from the server.")
     async def kick(self,ctx, member:discord.Member,*,reason = None):
@@ -115,7 +115,7 @@ class Mod(commands.Cog):
         embed = discord.Embed(description = f"**{member}** was kicked from the server\n{res}",color = discord.Color.green())
         await ctx.reply(embed = embed)
 
-    @commands.hybrid_command(id = "77",aliases = ['b'],help = "Ban a member from the server")
+    @commands.hybrid_command(extras = {"id": "77"},aliases = ['b'],help = "Ban a member from the server")
     @commands.has_permissions(ban_members = True)
     @app_commands.describe(member = "The member or user that should be banned from the server.",reason = "Why you are banning this member or user from the server.")
     async def ban(self,ctx,member,*,reason = None):
@@ -153,7 +153,7 @@ class Mod(commands.Cog):
             embed = discord.Embed(description = f"**{member}** was banned from the server\n{res}",color = discord.Color.green())
             await ctx.reply(embed = embed)
 
-    @commands.hybrid_command(id = "78",aliases = ['mb'],help = "Mass ban members from the server")
+    @commands.hybrid_command(extras = {"id": "78"},aliases = ['mb'],help = "Mass ban members from the server")
     @commands.has_permissions(ban_members = True) 
     @app_commands.describe(members = "A list of members or IDS, separated by spaces.")
     async def massban(self,ctx,*,members):
@@ -184,7 +184,7 @@ class Mod(commands.Cog):
         except:
             await ctx.send(embed = discord.Embed(description = f"Banned **{count}** members",color = discord.Color.green()))
 
-    @commands.hybrid_command(id = "79",help = "Unban a member from the server.")
+    @commands.hybrid_command(extras = {"id": "79"},help = "Unban a member from the server.")
     @commands.has_permissions(ban_members = True) 
     @app_commands.describe(user = "The user to unban from the server.",reason = "Why this user is being unbanned from the server.")
     async def unban(self,ctx,user:discord.User,*,reason=None):

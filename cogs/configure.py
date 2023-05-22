@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
 from discord import app_commands, ui
-from utils import methods
-
+from utils import methods, errors
+from typing import Literal, List
 
 class Configure(commands.Cog):
     """
@@ -35,6 +35,213 @@ class Configure(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
         await view.wait()
+    
+    @commands.hybrid_command(help = "Enable a command for certain members, roles, or channels.")
+    @commands.has_permissions(manage_guild = True) 
+    @app_commands.describe(command = "The command name of which to setup an enable rule for.",parameter = "The member, channel, or role to enable the command for.") 
+    async def enable(self,ctx,command,parameter):
+        command = self.client.get_command(command)
+        if not command:
+            raise errors.ParsingError(message = "That does not look like a valid command name!")
+        if not command.extras and "id" not in command.extras:
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is not able to have its permissions configured!")
+        if parameter.lower() == "all":
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.eall":1}) or {}
+            if methods.query(data = raw, search = ["settings","rules",str(command.extras['id']),"eall"]):
+                raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is already enabled for everyone.")
+            self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{f"settings.rules.{command.extras['id']}.eall":True}})
+            embed = discord.Embed(description = f"Enabled the command `{command.qualified_name}` for `all`.\nReminder that any 'enable' will override any 'disable' rule setup!",color = discord.Color.green())
+            return await ctx.reply(embed = embed)
+        
+        try:
+            object = await commands.converter.MemberConverter().convert(ctx,parameter)
+            prefix = "users"
+        except commands.BadArgument as e:
+            try:
+                object = await commands.converter.RoleConverter().convert(ctx,parameter)
+                prefix = "roles"
+            except commands.BadArgument as e:
+                try:
+                    object = await commands.converter.GuildChannelConverter().convert(ctx,parameter)
+                    prefix = "channels"
+                except:
+                    raise errors.ParsingError(message = "I could not parse your input!\nReminder that only members, roles, and channels are acceptable as input.")
+        
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.e{prefix}":1}) or {}
+        if object.id in (methods.query(data = raw, search = ["settings","rules",str(command.extras['id']),f"e{prefix}"]) or []):
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is already enabled for `{object.id}`.")
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$addToSet":{f"settings.rules.{command.extras['id']}.e{prefix}":object.id}})
+        embed = discord.Embed(description = f"Enabled the command `{command.qualified_name}` for `{object.id}`.\nReminder that any 'enable' will override any 'disable' rule setup!",color = discord.Color.green())
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @commands.hybrid_command(help = "Disable a command for certain members, roles, or channels.")
+    @commands.has_permissions(manage_guild = True)
+    @app_commands.describe(command = "The command name of which to setup a disable rule for.",parameter = "The member, channel, or role to disable the command for.") 
+    async def disable(self,ctx,command,parameter):
+        command = self.client.get_command(command)
+        if not command:
+            raise errors.ParsingError(message = "That does not look like a valid command name!")
+        if not command.extras and "id" not in command.extras:
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is not able to have its permissions configured!")
+        if parameter.lower() == "all":
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.dall":1}) or {}
+            if methods.query(data = raw, search = ["settings","rules",str(command.extras['id']),"dall"]):
+                raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is already disabled for everyone.")
+            self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{f"settings.rules.{command.extras['id']}.dall":True}})
+            embed = discord.Embed(description = f"Disabled the command `{command.qualified_name}` for `all`.\nReminder that any 'enable' will override any 'disable' rule setup!",color = discord.Color.green())
+            return await ctx.reply(embed = embed)
+
+        try:
+            object = await commands.converter.MemberConverter().convert(ctx,parameter)
+            prefix = "users"
+        except commands.BadArgument as e:
+            try:
+                object = await commands.converter.RoleConverter().convert(ctx,parameter)
+                prefix = "roles"
+            except commands.BadArgument as e:
+                try:
+                    object = await commands.converter.GuildChannelConverter().convert(ctx,parameter)
+                    prefix = "channels"
+                except:
+                    raise errors.ParsingError(message = "I could not parse your input!\nReminder that only members, roles, and channels are acceptable as input.")
+        
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.d{prefix}":1}) or {}
+        if object.id in (methods.query(data = raw, search = ["settings","rules",str(command.extras['id']),f"d{prefix}"]) or []):
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is already disable for `{object.id}`.")
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$addToSet":{f"settings.rules.{command.extras['id']}.d{prefix}":object.id}})
+        embed = discord.Embed(description = f"Enabled the command `{command.qualified_name}` for `{object.id}`.\nReminder that any 'enable' will override any 'disable' rule setup!",color = discord.Color.green())
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @commands.hybrid_group(help = "View commands that have rules setup, and manage the rules with them.")
+    @commands.has_permissions(manage_guild = True)
+    async def rules(self,ctx):
+        if ctx.invoked_subcommand is None:
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help rules` to get a list of commands.")
+    
+    @rules.command(help = "View what commands have rules on them.")
+    @commands.has_permissions(manage_guild = True)
+    async def list(self,ctx):
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules":1})
+        rules = methods.query(data = raw,search = ["settings","rules"])
+
+        if not rules:
+            raise errors.NotSetupError(message = "No command rules are setup for this server!")
+        
+        mapping = {}
+
+        for command in self.client.commands:
+            if command.extras and "id" in command.extras and str(command.extras['id']) in rules:
+                mapping[command.extras['id']] = command.qualified_name
+        
+        rules = "\n".join([mapping[x] for x in rules])
+        embed = discord.Embed(title = f"Rules and Permissions for {ctx.guild.name}",description = rules)
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @rules.command(help = "View what rules are setup for a command")
+    @commands.has_permissions(manage_guild = True)
+    @app_commands.describe(command = "The command name of which to view rules for.")
+    async def view(self,ctx,command):
+        command = self.client.get_command(command)
+        if not command:
+            raise errors.ParsingError(message = "That does not look like a valid command name!")
+        if not command.extras and "id" not in command.extras:
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is not able to have its permissions configured!")
+        
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}":1})
+        rules = methods.query(data = raw,search = ["settings","rules",str(command.extras['id'])]) or {}
+        eroles = rules.get("eroles",None)
+        droles = rules.get("droles",None)
+        echannels = rules.get("echannels",None)
+        dchannels = rules.get("dchannels",None)
+        eusers = rules.get("eusers",None)
+        dusers = rules.get("dusers",None)
+        eall = rules.get("eall",None)
+        dall = rules.get("dall",None)
+
+        embed = discord.Embed(title = f"Rules and Permissions for {command.qualified_name}")
+        if eall:
+            embed.add_field(name = f"**Enabled for All:**",value =  eall,inline = False)
+        if dall:
+            embed.add_field(name = f"**Disabled for All:**",value =  dall,inline = False)
+        if eroles:
+            embed.add_field(name = f"**Enabled Roles:** ",value = ' '.join(['<@&' + str(b) + '>' for b in eroles]),inline = False)
+        if droles:
+            embed.add_field(name = f"**Disabled Roles:**",value = ' '.join(['<@&' + str(b) + '>' for b in droles]),inline = False)
+        if echannels:
+            embed.add_field(name = f"**Enabled Channels:** ",value =' '.join(['<#' + str(b) + '>' for b in echannels]),inline = False)
+        if dchannels:
+            embed.add_field(name = f"**Disabled Channels:**",value = ' '.join(['<#' + str(b) + '>' for b in dchannels]),inline = False)
+        if eusers:
+            embed.add_field(name = f"**Enabled Users:** ",value =' '.join(['<@' + str(b) + '>' for b in eusers]),inline = False)
+        if dusers:
+            embed.add_field(name = f"**Disabled Users:** ",value =' '.join(['<@' + str(b) + '>' for b in dusers]),inline = False)
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @rules.command(help = "Remove an enable or disable rule you have setup")
+    @app_commands.describe(command = "The command name of which to remove rules for.",enabledisable = "Whether to remove an enable or disable rule.",parameter = "The member, role, or channel to remove a rule for.")
+    @commands.has_permissions(manage_guild = True)
+    async def remove(self,ctx,command,enabledisable:Literal['enable','disable'],parameter):
+        command = self.client.get_command(command)
+        if not command:
+            raise errors.ParsingError(message = "That does not look like a valid command name!")
+        if not command.extras and "id" not in command.extras:
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` is not able to have its permissions configured!")
+        
+        prefix = enabledisable[0]
+
+        if parameter.lower() == "all":
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.{prefix}all":1})
+            if not methods.query(data = raw, search = ["settings","rules",str(command.extras['id']),f"{prefix}all"]):
+                raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` does not have `{enabledisable}` setup for `all`.")
+            self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"settings.rules.{command.extras['id']}.{prefix}all":""}})
+            embed = discord.Embed(description = f"Removed the `{enabledisable}` rule for `all` under the command `{command.qualified_name}`!",color = discord.Color.green())
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+            return await ctx.reply(embed = embed)
+        
+        try:
+            object = await commands.converter.MemberConverter().convert(ctx,parameter)
+            suffix = "users"
+        except commands.BadArgument as e:
+            try:
+                object = await commands.converter.RoleConverter().convert(ctx,parameter)
+                suffix = "roles"
+            except commands.BadArgument as e:
+                try:
+                    object = await commands.converter.GuildChannelConverter().convert(ctx,parameter)
+                    suffix = "channels"
+                except:
+                    raise errors.ParsingError(message = "I could not parse your input!\nReminder that only members, roles, and channels are acceptable as input.")
+        
+        raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.{prefix}{suffix}":1})
+        if not object.id in methods.query(data = raw, search = ["settings","rules",str(command.extras['id']),f"{prefix}{suffix}"]):
+            raise errors.PreRequisiteError(message = f"The command `{command.qualified_name}` does not have `{enabledisable}` setup for {object.mention}.")
+        self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$pull":{f"settings.rules.{command.extras['id']}.{prefix}{suffix}":object.id}})
+
+        if len(methods.query(data = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}.{prefix}{suffix}":1}),search = ["settings","rules",str(command.extras['id']),f"{prefix}{suffix}"]) or []) == 0:
+            self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"settings.rules.{command.extras['id']}.{prefix}{suffix}":""}})
+        if len(methods.query(data = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{f"settings.rules.{command.extras['id']}":1}),search = ["settings","rules",str(command.extras['id'])]) or {}) == 0:
+            self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"settings.rules.{command.extras['id']}":""}})
+        embed = discord.Embed(description = f"Removed the `{enabledisable}` rule for {object.mention} under the command `{command.qualified_name}`!",color = discord.Color.green())
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @remove.autocomplete("command")
+    @view.autocomplete("command")
+    @enable.autocomplete("command")
+    @disable.autocomplete("command")
+    async def command_autocomplete(self, interaction: discord.Interaction, needle: str) -> List[app_commands.Choice[str]]:
+        assert self.client.help_command
+        ctx = await self.client.get_context(interaction, cls=commands.Context)
+        needle = needle.lower()
+        return [
+            app_commands.Choice(name=command.qualified_name, value=command.qualified_name)
+            for command in await self.client.get_cog("helpcommand").help_command.filter_commands(self.client.walk_commands(), sort=True)
+            if needle in command.qualified_name
+        ][:25]
 
 class UserSettingView(ui.View):
     def __init__(self,ctx):
@@ -46,7 +253,7 @@ class UserSettingView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):
@@ -95,7 +302,7 @@ class SettingView(ui.View):
     async def interaction_check(self, interaction):
         if interaction.user == self.ctx.author:
             return True
-        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()))
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
         return False
     
     async def on_timeout(self):
@@ -131,6 +338,7 @@ class SettingView(ui.View):
 class SettingsSelect(ui.Select):
     def __init__(self):
         options = [
+            discord.SelectOption(label = "Bot Settings", description = "Change the bot prefix.",value = -1),
             discord.SelectOption(label = "Boost Tracking", description = "Toggle boost tracking and setup logging/announcing.",value = 0),
             discord.SelectOption(label = "Event Tracking", description = "Setup event roles and logging.",value = 1),
             discord.SelectOption(label = "Invite Tracking", description = "Setup where the invite logger goes.",value = 2),
@@ -162,6 +370,8 @@ class SettingsSelect(ui.Select):
             category = Utility(interaction,"settings.utility")
         elif self.values[0] == "8":
             category = Utility2(interaction,"settings.utility")
+        elif self.values[0] == "-1":
+            category = BotSettings(interaction,"settings.general")
 
         self.view.clear_items()
         self.view.add_item(self)
@@ -334,6 +544,20 @@ class Send_Modal(ui.Button):
     async def callback(self,interaction):
         self.modal.view = self.view
         await interaction.response.send_modal(self.modal)
+
+class Prefix_Text_input(ui.Modal,title = "Bot Prefix Setting"):
+    def __init__(self,category):
+        super().__init__()
+        self.category = category
+        self.view = None
+    
+    input = discord.ui.TextInput(label = "Box Prefix",placeholder = "The prefix for all text commands.")
+
+    async def on_submit(self,interaction):
+        interaction.client.db.guild_data.update_one({"_id":interaction.guild.id},{"$set":{"settings.general.prefix":self.input.value}})
+        interaction.client.prefixes[interaction.guild_id] = self.input.value
+        embed = await self.view.generate_embed(self.category.name, await self.category.generate_data())
+        await interaction.response.edit_message(embed = embed)
 
 class Lockdown_Text_Input(ui.Modal,title = "Lockdown Message Setting"):
     def __init__(self,category):
@@ -583,6 +807,22 @@ class Utility2():
             [Add_AFK_Channel_Select("Add AFK Ignore Channel","settings.utility.afkchannels",self,channel_types = [discord.ChannelType.text])],
             [Remove_AFK_Channel_Select("Remove AFK Ignore Channel","settings.utility.afkchannels",self,channel_types = [discord.ChannelType.text])],
             [View_Channel_List("settings.utility.afkchannels",label = "View AFK Ignore Channels")]
+        ]
+
+class BotSettings():
+    def __init__(self,initialinteraction,key):
+        self.initialinteraction = initialinteraction
+        self.key = key
+        self.name = "Bot Settings"
+    
+    async def generate_data(self):
+        data = self.initialinteraction.client.db.guild_data.find_one({"_id":self.initialinteraction.guild_id},{self.key:1}) or {}
+        prefix = methods.query(data = data, search = ["settings","general","prefix"]) or "m?"
+        return {"Bot Prefix":["str",prefix]}
+
+    async def pull_items(self):
+        return [
+            [Send_Modal(Prefix_Text_input(self),label = "Bot Prefix")],
         ]
 
 

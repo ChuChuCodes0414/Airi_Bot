@@ -240,6 +240,21 @@ class Hoyoverse(commands.Cog):
         embed = await view.generate_embed(self.client.db.user_data.find_one({"_id":ctx.author.id},{"hoyoverse.settings":1}))
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
+    
+    @hoyolab.command(extras = {"id": "546"}, help = "Refresh your cookie token, in the event it has expired.")
+    async def refresh(self,ctx):
+        data = await self.get_redeem_cookies(ctx,ctx.author) 
+        if not data: return
+        async with ctx.typing():
+            data = await genshin.refresh_cookie_token(cookies = data)
+            cookie_token = data["cookie_token"]
+            cookieutf8 = cookie_token.encode('utf8')
+            encodedcookie = rsa.encrypt(cookieutf8,self.public)
+            self.client.db.user_data.update_one({"_id":ctx.author.id},{"$set":{"hoyoverse.settings.cookietoken":binascii.hexlify(encodedcookie).decode('utf8')}})
+            
+        embed = discord.Embed(description = "<:greentick:930931553478008865> Sucessfully refreshed your redemption cookies!",color = discord.Color.green())
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
 
     @hoyolab.command(extras = {"id": "503"}, help = "Get the accounts linked to your Hoyoverse accounts.")
     @commands.cooldown(1,30,commands.BucketType.user)
@@ -408,8 +423,21 @@ class Hoyoverse(commands.Cog):
                         client = genshin.Client({"account_id": account_id ,"cookie_token": cookie_token})
                         await client.redeem_code(code,game = genshin.Game.GENSHIN)
                         success += 1
+                    except genshin.errors.InvalidCookies as e:
+                        try:
+                            data = await genshin.refresh_cookie_token(cookies = {"account_id": account_id ,"cookie_token": cookie_token})
+                            client = genshin.Client(data)
+                            await client.redeem_code(code,game = genshin.Game.GENSHIN)
+                            success += 1
+                            cookie_token = data["cookie_token"]
+                            cookieutf8 = cookie_token.encode('utf8')
+                            encodedcookie = rsa.encrypt(cookieutf8,self.key)
+                            self.client.db.user_data.update_one({"_id":ctx.author.id},{"$set":{"hoyoverse.settings.cookietoken":binascii.hexlify(encodedcookie).decode('utf8')}})
+                        except Exception as e:
+                            print(f"Error Refreshing Cookies for {account['_id']}: {e}")
+                            error += 1
                     except Exception as e:
-                        print(e)
+                        print(f"Redemption Error for {account['_id']}: {e}")
                         error += 1
             embed = discord.Embed(title = "Genshin Promotion Code Redeemed!",description = f"**{ctx.author}** has redeemed the code `{code}` for all users who have auto redeem setup!",color = discord.Color.random())
             embed.add_field(name = "Successful Claims",value = success)
@@ -1190,8 +1218,21 @@ class Hoyoverse(commands.Cog):
                         client = genshin.Client({'account_id':account_id,'cookie_token':cookie_token})
                         await client.redeem_code(code,game = genshin.Game.STARRAIL)
                         success += 1
+                    except genshin.errors.InvalidCookies as e:
+                        try:
+                            data = await genshin.refresh_cookie_token(cookies = {"account_id": account_id ,"cookie_token": cookie_token})
+                            client = genshin.Client(data)
+                            await client.redeem_code(code,game = genshin.Game.STARRAIL)
+                            success += 1
+                            cookie_token = data["cookie_token"]
+                            cookieutf8 = cookie_token.encode('utf8')
+                            encodedcookie = rsa.encrypt(cookieutf8,self.key)
+                            self.client.db.user_data.update_one({"_id":ctx.author.id},{"$set":{"hoyoverse.settings.cookietoken":binascii.hexlify(encodedcookie).decode('utf8')}})
+                        except Exception as e:
+                            print(f"Error Refreshing Cookies for {account['_id']}: {e}")
+                            error += 1
                     except Exception as e:
-                        print(e)
+                        print(f"Redemption Error for {account['_id']}: {e}")
                         error += 1
             embed = discord.Embed(title = "Honkai: Star Rail Promotion Code Redeemed!",description = f"**{ctx.author}** has redeemed the code `{code}` for all users who have auto redeem setup!",color = discord.Color.random())
             embed.add_field(name = "Successful Claims",value = success)

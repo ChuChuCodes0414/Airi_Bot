@@ -156,6 +156,10 @@ class ErrorHandling(commands.Cog):
             await self.send_error_embed(ctx,"That does not seem like a valid redeem code!")
             return
         
+        if isinstance(error,genshin.errors.InvalidCookies):
+            await self.send_error_embed(ctx,"Cookies are invalid!\nNote if you are redeeming a code, you can try refreshing your cookie token with `/refresh`.")
+            return
+
         if isinstance(error,genshin.errors.AuthkeyTimeout):
             await self.send_error_embed(ctx,"This user's authkey has timed out!\nIf you are this user, you can regenerate your authkey and reenter it with `[prefix]hoyolab setup`.")
             return

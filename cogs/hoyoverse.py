@@ -48,7 +48,7 @@ class Hoyoverse(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print('Hoyoverse Category Loaded.')
-    
+
     @tasks.loop(hours = 24)
     async def claim_daily(self):
         print("Claiming hoyoverse dailies...")
@@ -68,7 +68,7 @@ class Hoyoverse(commands.Cog):
                     except Exception as e:
                         error += 1
                         print(f"Error for {account['_id']}: {e}")
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(10)
                 if hoyosettings.get("hautoclaim"):
                     try:
                         await client.claim_daily_reward(game = genshin.Game.HONKAI)
@@ -76,7 +76,7 @@ class Hoyoverse(commands.Cog):
                     except Exception as e:
                         herror += 1
                         print(f"Error for {account['_id']}: {e}")
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(10)
                 if hoyosettings.get("hsautoclaim"):
                     try:
                         await client.claim_daily_reward(game = genshin.Game.STARRAIL)
@@ -84,7 +84,7 @@ class Hoyoverse(commands.Cog):
                     except Exception as e:
                         hserror += 1
                         print(f"Error for {account['_id']}: {e}")
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(10)
         embed = discord.Embed(title = "Hoyoverse Daily Rewards Claimed!",description = "Today's Hoyoverse auto claim stats are as follows.",color = discord.Color.random())
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
@@ -105,7 +105,7 @@ class Hoyoverse(commands.Cog):
             next_run += datetime.timedelta(days=1)
         print("Waiting until 7am to start hoyoverse claims!")
         await discord.utils.sleep_until(next_run)
-
+    
     async def cog_load(self):
         if hoyoversestore.CHARACTER_MAPPING:
             self.character_mapping = hoyoversestore.CHARACTER_MAPPING
@@ -200,6 +200,13 @@ class Hoyoverse(commands.Cog):
         uid = methods.query(data = raw, search = ["hoyoverse","settings","huid"])
         if not uid:
             raise errors.NotSetupError(message = "The Honkai Impact 3rd UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
+        return uid
+
+    async def pull_hsuid(self,user):
+        raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.hsuid"})
+        uid = methods.query(data = raw, search = ["hoyoverse","settings","hsuid"])
+        if not uid:
+            raise errors.NotSetupError(message = "The Honkai: Star Rail UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
         return uid
 
     @commands.hybrid_group(extras = {"id": "500"},help = "The command group to manage your account details.")
@@ -319,6 +326,7 @@ class Hoyoverse(commands.Cog):
         async with ctx.typing():
             client = genshin.Client(data)
             uid = await self.pull_uid(member)
+            data = await client.get_partial_genshin_user(uid)
             if cycle == "current":
                 data = await client.get_genshin_spiral_abyss(uid)
             else:
@@ -432,7 +440,7 @@ class Hoyoverse(commands.Cog):
                             cookie_token = data["cookie_token"]
                             cookieutf8 = cookie_token.encode('utf8')
                             encodedcookie = rsa.encrypt(cookieutf8,self.key)
-                            self.client.db.user_data.update_one({"_id":ctx.author.id},{"$set":{"hoyoverse.settings.cookietoken":binascii.hexlify(encodedcookie).decode('utf8')}})
+                            self.client.db.user_data.update_one({"_id":account["_id"]},{"$set":{"hoyoverse.settings.cookietoken":binascii.hexlify(encodedcookie).decode('utf8')}})
                         except Exception as e:
                             print(f"Error Refreshing Cookies for {account['_id']}: {e}")
                             error += 1
@@ -1245,6 +1253,126 @@ class Hoyoverse(commands.Cog):
             await message.publish()
         await ctx.reply(embed = discord.Embed(description = f"Successfully auto redeemed `{code}`!",color = discord.Color.green()))
     
+    @honkaistarrail.command(extras = {"id":"547"},name = "stats",help = "View your player stats like days active and achievements.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to check information for.")
+    async def hsstats(self,ctx,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            uid = await self.pull_hsuid(member)
+            data = await client.get_starrail_user(uid = uid)
+            back = Image.open("./pillow/staticassets/hsback.png").convert('RGBA')
+            mafuyu = Image.open("./pillow/staticassets/mafuyu.png").convert('RGBA')
+            mafuyuresized = mafuyu.resize((mafuyu.width//10,mafuyu.height//10))
+            backresized = back.resize((back.width//2,back.height//2))
+            copy = backresized.copy()
+            draw = Image.new("RGBA",copy.size)
+            copy_editable = ImageDraw.Draw(draw)
+            uidtext = f"UID: {uid}"
+            copy_editable.text((20,20),"User Statistics",(255,255,255),font = pillow.title_font)
+            _,_,w,h = copy_editable.textbbox((0,0),uidtext,font = pillow.title_font)
+            copy_editable.text((copy.width-w-20,20),uidtext,font = pillow.title_font)
+            copy_editable.line(((20,40+h),(869,40+h)),(255,255,255),1)
+            currenth = 40+h+21
+
+            copy_editable.text((20,currenth),f"Nickname: {data.info.nickname}",font = pillow.title_font)
+            currenth += 15 + h
+            copy_editable.text((20,currenth),f"Trailblaze Level: {data.info.level}",font = pillow.title_font)
+            currenth += 15 + h
+            copy_editable.text((20,currenth),f"Active Days: {data.stats.active_days}",font = pillow.title_font)
+            currenth += 15 + h
+            copy_editable.text((20,currenth),f"Character Count: {data.stats.avatar_num}",font = pillow.title_font)
+            currenth += 15 + h
+            copy_editable.text((20,currenth),f"Achievements Unlocked: {data.stats.achievement_num}",font = pillow.title_font)
+            currenth += 15 + h
+            copy_editable.text((20,currenth),f"Chests Opened: {data.stats.chest_num}",font = pillow.title_font)
+            currenth += 15 + h
+            copy_editable.text((20,currenth),f"Forgotten Hall: {data.stats.abyss_process}",font = pillow.title_font)
+
+            copy_editable.line(((20,copy.height-40),(869,copy.height-40)),(255,255,255),1)
+
+            credits_text = f"Mafuyu Bot\ndiscord.gg/9pmGDc8pqQ"
+            _,_,w7,h7 = copy_editable.textbbox((0,0),credits_text,font = pillow.credits_font)
+            copy_editable.text((copy.width - w7 - 10,copy.height - h7 - 10),credits_text,font = pillow.credits_font,fill = (177, 156, 217))
+            copy.paste(mafuyuresized,(copy.width - w7 - 40,copy.height - h7 - 13),mafuyuresized)
+
+            out = Image.alpha_composite(copy,draw)
+            buffer = BytesIO()
+            out.save(buffer,"png")
+            buffer.seek(0)
+            file = discord.File(buffer,filename = f"{uid}statcard.png")
+            embed = discord.Embed(title = "Honkai: Star Rail Stats Card",color = discord.Color.random())
+            embed.set_image(url = f"attachment://{uid}statcard.png")
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(file = file,embed = embed)
+    
+    @honkaistarrail.command(extras = {"id":548},name = "realtimenotes",aliases = ['rtn'],help = "Get real-time notes information like trailblaze power.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to check information for.")
+    async def hsrealtimenotes(self,ctx,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            uid = await self.pull_hsuid(member)
+            data = await client.get_starrail_notes(uid = uid)
+            now = discord.utils.utcnow()
+            nowunix = int(now.replace(tzinfo=datetime.timezone.utc).timestamp())
+
+            embed = discord.Embed(title = f"Real Time Notes for {member}",description = f"As of <t:{nowunix}:f>",color = discord.Color.random())
+            trailblazefull = now + data.stamina_recover_time
+            if trailblazefull == now:
+                embed.add_field(name = "<:trailblazepower:1116016414067785800> Trailblaze Power",value = f"{data.current_stamina}/{data.max_stamina}\nTrailblaze Power is currently full!",inline = False)
+            else:
+                trailblazeunix = int(trailblazefull.replace(tzinfo = datetime.timezone.utc).timestamp())
+                embed.add_field(name = "<:trailblazepower:1116016414067785800> Trailblaze Power",value = f"{data.current_stamina}/{data.max_stamina}\nFull Trailblaze Power <t:{trailblazeunix}:R>",inline = False)
+
+            if data.expeditions:
+                expeditionres = ""
+                for expedition in data.expeditions:
+                    if expedition.status == "Ongoing":
+                        completein = now + expedition.remaining_time
+                        completeunix = int(completein.replace(tzinfo=datetime.timezone.utc).timestamp())
+                        expeditionres += f"**{expedition.name}:** Complete <t:{completeunix}:R>\n"
+                embed.add_field(name = "<:assignments:1116017691325648906> Assignments",value = expeditionres,inline = False)
+            else:
+                embed.add_field(name = "<:assignments:1116017691325648906> Assignments",value = "None",inline = False)
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @honkaistarrail.command(extras = {"id":549},help = "View forgotten hall data from this cycle or the previous one.")
+    @app_commands.describe(member = "The member to check information for.",cycle = "Either the current forgotten hall period or the previous one.")
+    async def forgottenhall(self,ctx,member:discord.Member = None,cycle:Literal['current','previous'] = None):
+        member = member or ctx.author
+        cycle = cycle or "current"
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            uid = await self.pull_hsuid(member)
+            if cycle == "current":
+                data = await client.get_starrail_challenge(uid = uid)
+            else:
+                data = await client.get_starrail_challenge(uid = uid, previous = True)
+            view = HallView(ctx,data,uid)
+            buffer = await view.generate_default()
+            file = discord.File(buffer,filename = f"{uid}hallcard.png")
+            embed = discord.Embed(title = "Honkai: Star Rail Forgotten Hall Card",description = f"Season {data.season} | Start <t:{int(data.begin_time.datetime.replace(tzinfo=datetime.timezone.utc).timestamp())}:f> | End <t:{int(data.end_time.datetime.replace(tzinfo=datetime.timezone.utc).timestamp())}:f>",color = discord.Color.random())
+            embed.set_image(url = f"attachment://{uid}hallcard.png")
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        message = await ctx.reply(file = file,embed = embed,view = view)
+        view.message = message
+
     @honkaistarrail.command(extras = {"id": "543"},name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")
     async def hsauthkey(self,ctx):
         embed = discord.Embed(title = "Honkai: Star Rail Authkey Linking",description = "This is required to make any warp commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
@@ -1254,48 +1382,6 @@ class Hoyoverse(commands.Cog):
         view = HSAuthkeyView(ctx)
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
-    
-    '''
-    Will deal with this later
-    @honkaistarrail.command(extras = {"id":"544"},help = "Simple embeds that can show you your warping history.")
-    @commands.cooldown(1,30,commands.BucketType.user)
-    @app_commands.describe(member = "The member to see warp history for.")
-    async def warps2(self,ctx,limit:int = 2000,member:discord.Member = None):
-        member = member or ctx.author
-        if not await self.auth_privacy_check(ctx,member):
-            raise errors.AccessError(message = "This user has their warp/transaction data set to private!")
-        authkey = await self.get_hauthkey(ctx,member) 
-        if not authkey: return
-        async with ctx.typing():
-            data = await self.standardclient.warp_history(authkey = authkey,limit = limit).flatten()
-            hoyoversestore.STORAGE_ONE = data
-        data = hoyoversestore.STORAGE_ONE
-        if data[0].banner_type == genshin.models.genshin.gacha.StarRailBannerType.CHARACTER:
-            print("no")
-        stats = {"5":[],"4":[],"5Character":[],"5Light Cone":[],"4Character":[],"4Light Cone":[],"3":[],"c":[],"w":[],"s":[]}
-        for warp in data:
-            if warp.rarity == 5:
-                stats["5"].append(warp)
-                stats[f"5{warp.type}"].append(warp)
-            elif warp.rarity == 4:
-                stats["4"].append(warp)
-                stats[f"4{warp.type}"].append(warp)
-            else:
-                stats["3"].append(warp)
-
-            if warp.banner_type == genshin.models.genshin.gacha.StarRailBannerType.CHARACTER:
-                stats["c"].append(warp)
-            elif warp.banner_type == genshin.models.genshin.gacha.StarRailBannerType.WEAPON:
-                stats["w"].append(warp)
-            elif warp.banner_type == genshin.models.genshin.gacha.StarRailBannerType.STANDARD:
-                stats["s"].append(warp)
-            
-
-        print(len(stats["5"]),len(stats["4"]),len(stats["3"]))
-        print(len(stats["c"]),len(stats["w"]),len(stats["s"]))
-        print(stats["5"])
-        await ctx.reply("Done")
-    '''             
 
     @honkaistarrail.command(extras = {"id": "544"},help = "Simple embeds that can show you your warping history.")
     @commands.cooldown(1,30,commands.BucketType.user)
@@ -1403,6 +1489,7 @@ class SettingsView(discord.ui.View):
         data = data or {}
         uid = methods.query(data = data,search = ["hoyoverse","settings","uid"])
         huid = methods.query(data = data,search = ["hoyoverse","settings","huid"])
+        hsuid = methods.query(data = data,search = ["hoyoverse","settings","hsuid"])
         privacy = methods.query(data = data,search = ["hoyoverse","settings","privacy"])
         aprivacy = methods.query(data = data,search = ["hoyoverse","settings","aprivacy"])
         autoredeem = methods.query(data = data,search = ["hoyoverse","settings","autoredeem"])
@@ -1413,6 +1500,7 @@ class SettingsView(discord.ui.View):
         embed = discord.Embed(title = "Hoyoverse User Settings",description = "To setup cookies, use `/hoyolab link`\nTo setup authkey, use `/genshin authkey`",color = discord.Color.random())
         embed.add_field(name = "Genshin UID",value = str(uid))
         embed.add_field(name = "Honkai Impact 3rd UID",value = str(huid))
+        embed.add_field(name = "Honkai: Star Rail UID",value = str(hsuid))
         embed.add_field(name = "General Privacy",value = "Public" if privacy else "Private")
         embed.add_field(name = "Authkey Privacy",value = "Public" if aprivacy else "Private")
         embed.add_field(name = "Genshin Auto Code Redeem",value = "Enabled" if autoredeem else "Disabled")
@@ -1441,6 +1529,10 @@ class SettingsView(discord.ui.View):
     @discord.ui.button(label = "Honkai Impact 3rd UID")
     async def enterhuid(self,interaction,button):
         await interaction.response.send_modal(EditUID("hoyoverse.settings.huid",self))
+    
+    @discord.ui.button(label = "Honkai: Star Rail UID")
+    async def enterhsuid(self,interaction,button):
+        await interaction.response.send_modal(EditUID("hoyoverse.settings.hsuid",self))
 
 class PrivateSelect(discord.ui.Select):
     def __init__(self):
@@ -2623,7 +2715,7 @@ class CollectAuthKey(discord.ui.Modal,title = "Authkey Request"):
     
     async def on_submit(self, interaction: discord.Interaction):
         authkey = genshin.utility.extract_authkey(self.authkey.value)
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.authkey":authkey}})
+        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.authkey":authkey}},upsert = True)
 
         embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your authkey in the bot. You can now use any genshin command pertaining to wish history and transaction history!")
         await interaction.response.send_message(embed = embed,ephemeral = True)
@@ -2647,7 +2739,7 @@ class HSAuthkeyView(ui.View):
     
     @discord.ui.button(label = "1. Get Script",style = discord.ButtonStyle.blurple)
     async def getscript(self,interaction,button):
-        await interaction.response.send_message('```Invoke-Expression (New-Object Net.WebClient).DownloadString("https://gist.githubusercontent.com/ChuChuCodes0414/bf5c869449dfcd9320ed7c2d2ea355d9/raw")```',ephemeral = True)
+        await interaction.response.send_message('```[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; Invoke-Expression (New-Object Net.WebClient).DownloadString("https://gist.githubusercontent.com/ChuChuCodes0414/bf5c869449dfcd9320ed7c2d2ea355d9/raw")```',ephemeral = True)
     
     @discord.ui.button(label = "2. Enter Information",style = discord.ButtonStyle.blurple)
     async def enterinformation(self,interaction,button):
@@ -2660,10 +2752,254 @@ class HSCollectAuthKey(discord.ui.Modal,title = "Authkey Request"):
     authkey = discord.ui.TextInput(label = "Authkey",placeholder="A long link...",max_length = 3000)
     
     async def on_submit(self, interaction: discord.Interaction):
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.hauthkey":self.authkey.value}})
+        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.hauthkey":self.authkey.value}},upsert = True)
 
         embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your authkey in the bot. You can now use any Honkai: Star Rail command pertaining to warp history!")
         await interaction.response.send_message(embed = embed,ephemeral = True)
+
+class HallView(ui.View):
+    def __init__(self,ctx,data,uid):
+        super().__init__(timeout = 120)
+        self.message = None
+        self.ctx = ctx
+        self.uid = uid
+        self.data = data
+        self.add_item(HallSelect(data if data else {}))
+    
+    async def interaction_check(self,interaction):
+        if interaction.user == self.ctx.author:
+            return True
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
+        return False
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.message.edit(view = self)
+    
+    async def generate_default(self):
+        im1 = Image.open("./pillow/staticassets/hshallback.png").convert('RGBA')
+        star = Image.open("./pillow/staticassets/star.png").convert('RGBA')
+        mafuyu = Image.open("./pillow/staticassets/mafuyu.png").convert('RGBA')
+        goldback = Image.open("./pillow/staticassets/hsgoldback.png").convert('RGBA')
+        purpleback = Image.open("./pillow/staticassets/hspurpleback.png").convert('RGBA')
+
+        title_text = f"Forgotten Hall Challenge Summary"
+        star_text = f"{self.data.total_stars}/30"
+        battles_text = f"Battles Fought: {self.data.total_battles}"
+        stage_text = f"Stage Progress: {self.data.max_floor}"
+        credits_text = f"Mafuyu Bot\ndiscord.gg/9pmGDc8pqQ"
+
+        backresized = im1.resize((int(im1.width/1.5),int(im1.height/1.5)))
+        goldbackresized = goldback.resize((int(goldback.width/2.5),int(goldback.height/2.5)))
+        purplebackresized = purpleback.resize((int(purpleback.width/2.5),int(purpleback.height/2.5)))
+        starresized = star.resize((star.width//15,star.height//15))
+        mafuyuresized = mafuyu.resize((mafuyu.width//10,mafuyu.height//10))
+
+        copy = backresized.copy()
+        draw = Image.new("RGBA",copy.size)
+        copy_editable = ImageDraw.Draw(draw)
+
+        _,_,w,h = copy_editable.textbbox((0,0),star_text,font = pillow.title_font)
+        _,_,w2,h2 = copy_editable.textbbox((0,0),battles_text,font = pillow.subtitle_font)
+        _,_,w3,h3 = copy_editable.textbbox((0,0),stage_text,font = pillow.subtitle_font)
+        _,_,w4,h4 = copy_editable.textbbox((0,0),stage_text,font = pillow.small_font)
+        copy_editable.text((20,20),title_text,(255,255,255),font = pillow.title_font)
+        copy_editable.text((copy.width-w-20,20),star_text,(255,255,255),font = pillow.title_font)
+        copy.paste(starresized,(copy.width-starresized.width-w-25,20),starresized)
+        copy_editable.text((copy.width-w-w3-starresized.width-40,10),stage_text,font = pillow.subtitle_font)
+        copy_editable.text((copy.width-w-w2-starresized.width-40,13 + h3),battles_text,font = pillow.subtitle_font)
+
+        currenth = 40 + h
+        copy_editable.line(((20,currenth),(backresized.width-20,currenth)),(255,255,255),1)
+        currenth += 12
+        for i in range(0,min(3,len(self.data.floors))):
+            floor = self.data.floors[i]
+            floor_text = f"{floor.name} | Completed In: {floor.round_num} rounds | Stars: {floor.star_num}/3"
+            copy_editable.text((20,currenth),floor_text,(255,255,255),font = pillow.small_font)
+            currenth += h4+12
+
+            node1_text = f"Node One: {floor.node_1.challenge_time.datetime.strftime('%A, %B %d, %Y %I:%M %p')}"
+            copy_editable.text((20,currenth),node1_text,(255,255,255),font = pillow.small_font)
+            currenth += h4+2
+
+            for k in range(0,len(floor.node_1.avatars)):
+                character = floor.node_1.avatars[k]
+                if os.path.exists(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}"):
+                    characterimg = Image.open(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                else:
+                    characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
+                    characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if character.rarity == 5:
+                    copy.paste(goldbackresized,(20+((10+resized.width)*k),currenth+10),goldbackresized)
+                else:
+                    copy.paste(purplebackresized,(20+((10+resized.width)*k),currenth+10),purplebackresized)
+                copy.paste(resized,(20+((10+resized.width)*k),currenth+10),resized)
+
+                level_text = f"Level {character.level}"
+                _,_,w5,h5 = copy_editable.textbbox((0,0),level_text,font = pillow.small_font)
+                copy_editable.rectangle(((20+((10+resized.width)*k),currenth + 10 + resized.height - 13),(20+((10+resized.width)*k) + resized.width,currenth + 10 + resized.height)),(0,0,0,127))
+                copy_editable.text((20+((10+resized.width)*k) + resized.width//2 - w5//2,currenth + 10 + resized.height - 13 + 13//2 - h5//2),level_text,font = pillow.small_font)
+            
+            node1_text = f"Node Two: {floor.node_2.challenge_time.datetime.strftime('%A, %B %d, %Y %I:%M %p')}"
+            copy_editable.text((copy.width - 20 - (goldbackresized.width+10)*4,currenth-h4-2),node1_text,(255,255,255),font = pillow.small_font)
+
+            for k in range(0,len(floor.node_2.avatars)):
+                character = floor.node_1.avatars[k]
+                if os.path.exists(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}"):
+                    characterimg = Image.open(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                else:
+                    characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
+                    characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if character.rarity == 5:
+                    copy.paste(goldbackresized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),goldbackresized)
+                else:
+                    copy.paste(purplebackresized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),purplebackresized)
+                copy.paste(resized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),resized)
+
+                level_text = f"Level {character.level}"
+                _,_,w5,h5 = copy_editable.textbbox((0,0),level_text,font = pillow.small_font)
+                copy_editable.rectangle(((copy.width-resized.width-20-((10+resized.width)*k),currenth + 10 + resized.height - 13),(copy.width-resized.width-20-((10+resized.width)*k) + resized.width,currenth + 10 + resized.height)),(0,0,0,127))
+                copy_editable.text((copy.width-resized.width-20-((10+resized.width)*k) + resized.width//2 - w5//2,currenth + 10 + resized.height - 13 + 13//2 - h5//2),level_text,font = pillow.small_font)
+
+            currenth += goldbackresized.height + 20
+            copy_editable.line(((20,currenth),(backresized.width-20,currenth)),(255,255,255),2)
+            currenth += 14
+
+        _,_,w7,h7 = copy_editable.textbbox((0,0),credits_text,font = pillow.credits_font)
+        copy_editable.text((copy.width - w7 - 10,copy.height - h7 - 20),credits_text,font = pillow.credits_font)
+        copy.paste(mafuyuresized,(copy.width - w7 - 40,copy.height - h7 - 23),mafuyuresized)
+
+        out = Image.alpha_composite(copy,draw)
+        buffer = BytesIO()
+        out.save(buffer,"png")
+        buffer.seek(0)
+        return buffer
+    
+class HallSelect(ui.Select):
+    def __init__(self,data):
+        options = []
+        self.pages = []
+        group = []
+        self.data = data
+        for floor in data.floors:
+            group.append(floor)
+            if len(group) == 3:
+                self.pages.append(group)
+                group = []
+        if group:
+            self.pages.append(group)
+        for index,page in enumerate(self.pages):
+            options.append(discord.SelectOption(label = f"Forgotten Hall Floors {len(self.data.floors)-(index*3)} - {len(self.data.floors)-(index*3)-len(page)+1}",value = index))
+        super().__init__(placeholder = "Forgotten Hall Floors",min_values = 0,max_values = 1,options = options)
+    
+    async def callback(self,interaction):
+        floors = self.pages[int(self.values[0])]
+        im1 = Image.open("./pillow/staticassets/hshallback.png").convert('RGBA')
+        star = Image.open("./pillow/staticassets/star.png").convert('RGBA')
+        mafuyu = Image.open("./pillow/staticassets/mafuyu.png").convert('RGBA')
+        goldback = Image.open("./pillow/staticassets/hsgoldback.png").convert('RGBA')
+        purpleback = Image.open("./pillow/staticassets/hspurpleback.png").convert('RGBA')
+
+        title_text = f"Forgotten Hall Challenge Summary"
+        star_text = f"{self.data.total_stars}/30"
+        battles_text = f"Battles Fought: {self.data.total_battles}"
+        stage_text = f"Stage Progress: {self.data.max_floor}"
+        credits_text = f"Mafuyu Bot\ndiscord.gg/9pmGDc8pqQ"
+
+        backresized = im1.resize((int(im1.width/1.5),int(im1.height/1.5)))
+        goldbackresized = goldback.resize((int(goldback.width/2.5),int(goldback.height/2.5)))
+        purplebackresized = purpleback.resize((int(purpleback.width/2.5),int(purpleback.height/2.5)))
+        starresized = star.resize((star.width//15,star.height//15))
+        mafuyuresized = mafuyu.resize((mafuyu.width//10,mafuyu.height//10))
+
+        copy = backresized.copy()
+        draw = Image.new("RGBA",copy.size)
+        copy_editable = ImageDraw.Draw(draw)
+
+        _,_,w,h = copy_editable.textbbox((0,0),star_text,font = pillow.title_font)
+        _,_,w2,h2 = copy_editable.textbbox((0,0),battles_text,font = pillow.subtitle_font)
+        _,_,w3,h3 = copy_editable.textbbox((0,0),stage_text,font = pillow.subtitle_font)
+        _,_,w4,h4 = copy_editable.textbbox((0,0),stage_text,font = pillow.small_font)
+        copy_editable.text((20,20),title_text,(255,255,255),font = pillow.title_font)
+        copy_editable.text((copy.width-w-20,20),star_text,(255,255,255),font = pillow.title_font)
+        copy.paste(starresized,(copy.width-starresized.width-w-25,20),starresized)
+        copy_editable.text((copy.width-w-w3-starresized.width-40,10),stage_text,font = pillow.subtitle_font)
+        copy_editable.text((copy.width-w-w2-starresized.width-40,13 + h3),battles_text,font = pillow.subtitle_font)
+
+        currenth = 40 + h
+        copy_editable.line(((20,currenth),(backresized.width-20,currenth)),(255,255,255),1)
+        currenth += 12
+        for i in range(0,min(3,len(floors))):
+            floor = floors[i]
+            floor_text = f"{floor.name} | Completed In: {floor.round_num} rounds | Stars: {floor.star_num}/3"
+            copy_editable.text((20,currenth),floor_text,(255,255,255),font = pillow.small_font)
+            currenth += h4+12
+
+            node1_text = f"Node One: {floor.node_1.challenge_time.datetime.strftime('%A, %B %d, %Y %I:%M %p')}"
+            copy_editable.text((20,currenth),node1_text,(255,255,255),font = pillow.small_font)
+            currenth += h4+2
+
+            for k in range(0,len(floor.node_1.avatars)):
+                character = floor.node_1.avatars[k]
+                if os.path.exists(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}"):
+                    characterimg = Image.open(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                else:
+                    characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
+                    characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if character.rarity == 5:
+                    copy.paste(goldbackresized,(20+((10+resized.width)*k),currenth+10),goldbackresized)
+                else:
+                    copy.paste(purplebackresized,(20+((10+resized.width)*k),currenth+10),purplebackresized)
+                copy.paste(resized,(20+((10+resized.width)*k),currenth+10),resized)
+
+                level_text = f"Level {character.level}"
+                _,_,w5,h5 = copy_editable.textbbox((0,0),level_text,font = pillow.small_font)
+                copy_editable.rectangle(((20+((10+resized.width)*k),currenth + 10 + resized.height - 13),(20+((10+resized.width)*k) + resized.width,currenth + 10 + resized.height)),(0,0,0,127))
+                copy_editable.text((20+((10+resized.width)*k) + resized.width//2 - w5//2,currenth + 10 + resized.height - 13 + 13//2 - h5//2),level_text,font = pillow.small_font)
+            
+            node1_text = f"Node Two: {floor.node_2.challenge_time.datetime.strftime('%A, %B %d, %Y %I:%M %p')}"
+            copy_editable.text((copy.width - 20 - (goldbackresized.width+10)*4,currenth-h4-2),node1_text,(255,255,255),font = pillow.small_font)
+
+            for k in range(0,len(floor.node_2.avatars)):
+                character = floor.node_1.avatars[k]
+                if os.path.exists(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}"):
+                    characterimg = Image.open(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                else:
+                    characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
+                    characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
+                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if character.rarity == 5:
+                    copy.paste(goldbackresized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),goldbackresized)
+                else:
+                    copy.paste(purplebackresized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),purplebackresized)
+                copy.paste(resized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),resized)
+
+                level_text = f"Level {character.level}"
+                _,_,w5,h5 = copy_editable.textbbox((0,0),level_text,font = pillow.small_font)
+                copy_editable.rectangle(((copy.width-resized.width-20-((10+resized.width)*k),currenth + 10 + resized.height - 13),(copy.width-resized.width-20-((10+resized.width)*k) + resized.width,currenth + 10 + resized.height)),(0,0,0,127))
+                copy_editable.text((copy.width-resized.width-20-((10+resized.width)*k) + resized.width//2 - w5//2,currenth + 10 + resized.height - 13 + 13//2 - h5//2),level_text,font = pillow.small_font)
+
+            currenth += goldbackresized.height + 20
+            copy_editable.line(((20,currenth),(backresized.width-20,currenth)),(255,255,255),2)
+            currenth += 14
+
+        _,_,w7,h7 = copy_editable.textbbox((0,0),credits_text,font = pillow.credits_font)
+        copy_editable.text((copy.width - w7 - 10,copy.height - h7 - 20),credits_text,font = pillow.credits_font)
+        copy.paste(mafuyuresized,(copy.width - w7 - 40,copy.height - h7 - 23),mafuyuresized)
+
+        out = Image.alpha_composite(copy,draw)
+        buffer = BytesIO()
+        out.save(buffer,"png")
+        buffer.seek(0)
+        file = discord.File(buffer,filename = f"{self.view.uid}hallcard.png")
+        embed = discord.Embed(title = "Honkai: Star Rail Forgotten Hall Card",description = f"Season {self.data.season} | Start <t:{int(self.data.begin_time.datetime.replace(tzinfo=datetime.timezone.utc).timestamp())}:f> | End <t:{int(self.data.end_time.datetime.replace(tzinfo=datetime.timezone.utc).timestamp())}:f>",color = discord.Color.random())
+        embed.set_image(url = f"attachment://{self.view.uid}hallcard.png")
+        embed.set_footer(icon_url = interaction.client.user.avatar.url, text = interaction.client.user.name)
+        await interaction.response.edit_message(attachments = [file],embed = embed)
 
 async def setup(client):
     await client.add_cog(Hoyoverse(client))

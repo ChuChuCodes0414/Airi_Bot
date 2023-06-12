@@ -3,7 +3,6 @@ from discord import app_commands
 import asyncio
 from discord.ext import commands,tasks
 from utils import pymongo_client
-from utils import pymongo_client
 from utils import methods
 import aiohttp
 import os

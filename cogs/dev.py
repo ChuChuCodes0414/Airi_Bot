@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 import datetime
-from utils import methods
+from utils import methods, errors
 
 class Dev(commands.Cog):
     def __init__(self,client):
@@ -43,6 +43,16 @@ class Dev(commands.Cog):
         await channel.send(embed = embed)
         self.commands,self.users,self.guilds = {},{},{}
     
+    def bot_mod_check():
+        async def predicate(ctx):
+            raw = ctx.cog.client.db.user_data.find_one({"_id":ctx.author.id},{"botmod":1})
+            botmod = methods.query(data = raw, search = ["botmod"])
+            if botmod:
+                return True
+            raise errors.SetupCheckFailure(message = "You are not a bot moderator!")
+          
+        return commands.check(predicate)
+
     @post_recap.before_loop
     async def wait_until_7am(self):
         now = datetime.datetime.utcnow()
@@ -168,7 +178,65 @@ class Dev(commands.Cog):
     @unload.error
     async def unload_error(self,ctx, error):
         await ctx.reply(embed = discord.Embed(description = f'`{error}`',color = discord.Color.red()))
+    
+    @commands.command(hidden = True)
+    @bot_mod_check()
+    async def blacklist(self,ctx,user:discord.User,length:str,*,reason:str = None):
+        time = methods.timeparse(str(length))
+        if isinstance(time,str):
+            return await ctx.reply(embed = discord.Embed(description = time,color = discord.Color.red()))
 
+        unix = int((time + datetime.datetime.utcnow()).replace(tzinfo=datetime.timezone.utc).timestamp())
+        self.client.db.user_data.update_one({"_id":user.id},{"$set":{"settings.blacklist":{"until":unix,"reason":reason}}},upsert = True)
+
+        try:
+            dm = user.dm_channel
+            if dm == None:
+                dm = await user.create_dm()
+            embed = discord.Embed(title = "You have been bot blacklisted!",description = f"**Blacklisted Until:** <t:{unix}:f> (<t:{unix}:R>)\n**Blacklist Reason:** {reason}\n\nDuring this time, you cannot run any commands. If you feel you were incorrectly blacklisted, please appeal in the [Support Server](https://discord.com/invite/9pmGDc8pqQ).",color = discord.Color.red())
+            embed.timestamp = datetime.datetime.utcnow()
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+            await dm.send(embed = embed)
+            dm = True
+        except:
+            dm = False
+
+        embed = discord.Embed(title = "Blacklist Successful",description = f"**Blacklisted:** {user.mention} | {user} (`{user.id}`)\n**Action Taken By:** {ctx.author.mention} {ctx.author} (`{ctx.author.id}`)\n**Blacklisted Until:** <t:{unix}:f> (<t:{unix}:R>)\n**Blacklist Reason:** {reason}",color = discord.Color.green())
+        if dm:
+            embed.add_field(name = "Dm Sent?",value = "<:greentick:930931553478008865> Success!")
+        else:
+            embed.add_field(name = "Dm Sent?",value = "<:redtick:930931511685955604> Failed!")
+        embed.timestamp = datetime.datetime.utcnow()
+        await ctx.reply(embed = embed)
+        channel = self.client.get_channel(978029124243292210)
+        await channel.send(embed = embed)
+    
+    @commands.command(hidden = True)
+    @bot_mod_check()
+    async def unblacklist(self,ctx,user:discord.User,*,reason:str = None):
+        self.client.db.user_data.update_one({"_id":user.id},{"$unset":{"settings.blacklist":""}},upsert = True)
+
+        try:
+            dm = user.dm_channel
+            if dm == None:
+                dm = await user.create_dm()
+            embed = discord.Embed(title = "You have been unblacklisted!",description = f"**Unblacklist Reason:** {reason}",color = discord.Color.green())
+            embed.timestamp = datetime.datetime.utcnow()
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+            await dm.send(embed = embed)
+            dm = True
+        except:
+            dm = False
+
+        embed = discord.Embed(title = "Unblacklist Successful",description = f"**Unblacklisted:** {user.mention} | {user} (`{user.id}`)\n**Action Taken By:** {ctx.author.mention} {ctx.author} (`{ctx.author.id}`)\n**Unblacklist Reason:** {reason}",color = discord.Color.green())
+        if dm:
+            embed.add_field(name = "Dm Sent?",value = "<:greentick:930931553478008865> Success!")
+        else:
+            embed.add_field(name = "Dm Sent?",value = "<:redtick:930931511685955604> Failed!")
+        embed.timestamp = datetime.datetime.utcnow()
+        await ctx.reply(embed = embed)
+        channel = self.client.get_channel(978029124243292210)
+        await channel.send(embed = embed)
 
 async def setup(client):
     await client.add_cog(Dev(client))

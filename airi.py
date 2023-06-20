@@ -3,13 +3,14 @@ from discord import app_commands
 import asyncio
 from discord.ext import commands,tasks
 from utils import pymongo_client
-from utils import methods
+from utils import methods, errors
 import aiohttp
 import os
 from dotenv import load_dotenv
 from googletrans import Translator
 from langcodes import *
 import json
+import datetime
 
 class Client(commands.Bot):
     def __init__(self):
@@ -100,6 +101,15 @@ client = Client()
 # Need to implement
 @client.check
 def global_rules_check(ctx):
+    raw = ctx.bot.db.user_data.find_one({"_id":ctx.author.id},{f"settings.blacklist":1}) or {}
+    ban = methods.query(data = raw,search = ["settings","blacklist"])
+    if ban:
+        now = int(discord.utils.utcnow().replace(tzinfo=datetime.timezone.utc).timestamp()) 
+        if now < ban["until"]:
+            raise errors.BlacklistedError(ban["until"],ban["reason"])
+        else:
+            ctx.bot.db.user_data.update_one({"_id":ctx.author.id},{"$unset":{"settings.blacklist":""}})
+            raise errors.UnblacklistedMessage()
     if ctx.command.parents:
         for command in ctx.command.parents:
             if command.extras and "id" in command.extras:

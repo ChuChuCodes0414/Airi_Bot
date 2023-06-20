@@ -71,6 +71,17 @@ class ErrorHandling(commands.Cog):
         
         if isinstance(error, discord.app_commands.CommandInvokeError):
             error = error.original
+        
+        if isinstance(error, errors.BlacklistedError):
+            await self.send_error_embed(ctx,f"⚠ You are currently bot blacklisted!\n\n**Blacklisted Until:** <t:{error.until}:f> (<t:{error.until}:R>)\n**Blacklist Reason:** {error.reason}\n\nPlease refrain from sending commands, as this will lead to an increase in your blacklist time!")
+            return
+        
+        if isinstance(error,errors.UnblacklistedMessage):
+            await self.send_error_embed(ctx,error.message)
+            channel = self.client.get_channel(978029124243292210)
+            embed = discord.Embed(title = "User Unblacklisted!",description = f"**Blacklisted:** {ctx.author.mention} | {ctx.author} (`{ctx.author.id}`)**Unblacklist Reason:** Blacklist length was completed.",color = discord.Color.green())
+            await channel.send(embed = embed)
+            return
 
         if isinstance(error, commands.DisabledCommand):
             await self.send_error_embed(ctx,"Seems like this command was disabled. This is most likely due to a bug in the command, which will be fixed soon.\n"+
@@ -86,6 +97,7 @@ class ErrorHandling(commands.Cog):
             message = 'You need the **{}** permission(s) to use this command.'.format(fmt)
             await self.send_error_embed(ctx,message)
             return
+
         
         if isinstance(error, errors.SetupCheckFailure):
             message = f"A custom command check failed.\nContext: {error.message}"
@@ -166,6 +178,10 @@ class ErrorHandling(commands.Cog):
         
         if isinstance(error,genshin.errors.AlreadyClaimed):
             await self.send_error_embed(ctx,"The daily reward for this user has already been claimed!")
+            return
+        
+        if isinstance(error,errors.GeetestError):
+            await self.send_error_embed(ctx,"A Geetest captcha was raised that could not be solved!")
             return
         
         if isinstance(error,genshin.errors.GenshinException):

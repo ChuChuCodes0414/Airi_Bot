@@ -26,6 +26,22 @@ class ParsingError(commands.CommandError):
         super().__init__(message)
         self.message = message
 
+class GeetestError(commands.CommandError):
+    def __init__(self):
+        super().__init__("There was an error solving the Geetest Captcha!")
+        self.message = "There was an error solving the Geetest Captcha!"
+
+class BlacklistedError(commands.CommandError):
+    def __init__(self,until,reason):
+        super().__init__(message = "You are currently blacklisted from the bot!")
+        self.until = until
+        self.reason = reason
+
+class UnblacklistedMessage(commands.CommandError):
+    def __init__(self):
+        super().__init__(message = "Your blacklist period is now up! You have been automatically unblacklisted, please be more mindful of bot rules in the future.")
+        self.message = "Your blacklist period is now up! You have been automatically unblacklisted, please be more mindful of bot rules in the future."
+
 class PreRequisiteError(commands.CommandError):
     def __init__(self,message = "A pre-requisite for this command is not met!"):
         super().__init__(message)

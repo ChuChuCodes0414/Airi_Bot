@@ -19,6 +19,7 @@ from aioenkanetworkcard import encbanner
 import aiohttp
 import json
 import urllib
+from twocaptcha import TwoCaptcha
 
 class Hoyoverse(commands.Cog):
     def __init__(self,client):
@@ -26,6 +27,7 @@ class Hoyoverse(commands.Cog):
         self.short = "<:hoyo:981372000507412480> | Hoyoverse"
         self.standardclient = genshin.Client()
         self.standardclient.set_cookies(ltuid=os.getenv("LTUID"),ltoken=os.getenv("LTTOKEN"))
+        self.solver = TwoCaptcha(os.getenv("captcha_key"))
 
         with open(os.getenv("privatepath"),"r") as file:
             data = file.read()
@@ -40,7 +42,9 @@ class Hoyoverse(commands.Cog):
         self.weapon_mapping = {}
         self.artifact_mapping = {}
         self.talent_mapping = {}
+        self.captcha_tracking = {}
         self.claim_daily.start()
+        self.post_captcha.start()
 
         self.route = "https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog"
 
@@ -48,12 +52,24 @@ class Hoyoverse(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print('Hoyoverse Category Loaded.')
+    
+    @tasks.loop(minutes = 5)
+    async def post_captcha(self):
+        if len(self.captcha_tracking) > 0:
+            res = ""
+            for person in self.captcha_tracking:
+                res += f"{person} solved `{self.captcha_tracking[person]}` captchas"
+            channel = self.client.get_channel(1116058421146439690)
+            embed = discord.Embed(title = "Captcha Used in Past 5 minutes",description = res,color = discord.Color.random())
+            embed.timestamp = datetime.datetime.utcnow()
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+            await channel.send(embed = embed)
 
     @tasks.loop(hours = 24)
     async def claim_daily(self):
         print("Claiming hoyoverse dailies...")
         accounts = self.client.db.user_data.find({"$or":[{"hoyoverse.settings.autoclaim":True},{"hoyoverse.settings.hautoclaim":True},{"hoyoverse.settings.hsautoclaim":True}]},{"hoyoverse":1})
-        success,error,hsuccess,herror,hssuccess,hserror = 0,0,0,0,0,0
+        success,error,hsuccess,herror,hssuccess,hserror,dmsuccess,dmerror = 0,0,0,0,0,0,0,0
         for account in accounts:
             hoyosettings = account.get("hoyoverse",{}).get("settings",{})
             if "ltuid" in hoyosettings and "ltoken" in hoyosettings:
@@ -61,30 +77,81 @@ class Hoyoverse(commands.Cog):
                 ltuid = rsa.decrypt(binascii.unhexlify(ltuid),self.private).decode('utf8')
                 ltoken = rsa.decrypt(binascii.unhexlify(ltoken),self.private).decode('utf8')
                 client = genshin.Client({'ltuid':ltuid,'ltoken':ltoken})
+                emessage = ""
                 if hoyosettings.get("autoclaim"):
                     try:
                         await client.claim_daily_reward(game = genshin.Game.GENSHIN)
                         success += 1
+                    except genshin.GeetestTriggered as e:
+                        print(f"Geetest triggered for Genshin: {account['_id']}")
+                        try:
+                            result = await asyncio.gather(asyncio.to_thread(self.blocking_io,e.gt,e.challenge),asyncio.sleep(3))
+                            data = json.loads(result[0]['code'])
+                            challenge = {"challenge":data["geetest_challenge"],"validate":data["geetest_validate"],"seccode":data["geetest_seccode"]}
+                            await client.claim_daily_reward(game = genshin.Game.GENSHIN,challenge = challenge)
+                            success += 1
+                        except:
+                            error += 1
+                            print(f"Failed to solve Geetest triggered for Genshin: {account['_id']}")
+                            emessage += "- A Geetest Captcha was triggered while trying to claim your Genshin daily rewards, and the bot could not solve it! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481)\n"
+                    except genshin.InvalidCookies as e:
+                        error += 1
+                        print(f"Invalid cookies triggered for Genshin: {account['_id']}")
+                        emessage += "- Your cookies are invalid, and thus your Genshin daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
+                        self.client.db.user_data.update_one({"_id":int(account['_id'])},{"$unset":{"hoyoverse.settings.autoclaim":""}})
                     except Exception as e:
                         error += 1
                         print(f"Error for {account['_id']}: {e}")
+                        emessage += "- A error occured while claiming your Genshin daily rewards. You can try claiming manually through </genshin daily claim:999438437906124836> or through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481).\n"
                     await asyncio.sleep(10)
                 if hoyosettings.get("hautoclaim"):
                     try:
                         await client.claim_daily_reward(game = genshin.Game.HONKAI)
                         hsuccess += 1
+                    except genshin.GeetestTriggered as e:
+                        herror += 1
+                        print(f"Geetest triggered for Honkai Impact: {account['_id']}")
+                        emessage += "- A Geetest Captcha was triggered while trying to claim your Honkai Impact 3rd daily rewards! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin-bh3/index.html?act_id=e202110291205111)\n"
+                    except genshin.InvalidCookies as e:
+                        herror += 1
+                        print(f"Invalid cookies triggered for Honkai Impact: {account['_id']}")
+                        emessage += "- Your cookies are invalid, and thus your Honkai Impact 3rd daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
+                        self.client.db.user_data.update_one({"_id":int(account['_id'])},{"$unset":{"hoyoverse.settings.hautoclaim":""}})
                     except Exception as e:
                         herror += 1
                         print(f"Error for {account['_id']}: {e}")
+                        emessage += "- A error occured while claiming your Honkai Impact daily rewards. You can try claiming manually through </honkaiimpact3rd daily claim:1010989269122297870> or through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin-bh3/index.html?act_id=e202110291205111).\n"
                     await asyncio.sleep(10)
                 if hoyosettings.get("hsautoclaim"):
                     try:
                         await client.claim_daily_reward(game = genshin.Game.STARRAIL)
                         hssuccess += 1
+                    except genshin.GeetestTriggered as e:
+                        hserror += 1
+                        print(f"Geetest triggered for Honkai Star: {account['_id']}")
+                        emessage += "- A Geetest Captcha was triggered while trying to claim your Honkai: Star Rail daily rewards! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin/hkrpg/index.html?act_id=e202303301540311)\n"
+                    except genshin.InvalidCookies as e:
+                        hserror += 1
+                        print(f"Invalid cookies triggered for Honkai Star: {account['_id']}")
+                        emessage += "- Your cookies are invalid, and thus your Honkai: Star Rail daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
+                        self.client.db.user_data.update_one({"_id":int(account['_id'])},{"$unset":{"hoyoverse.settings.hsautoclaim":""}})
                     except Exception as e:
                         hserror += 1
                         print(f"Error for {account['_id']}: {e}")
+                        emessage += "- A error occured while claiming your Honkai: Star Rail daily rewards. You can try claiming manually through </honkaistarrail daily claim:1101694558842126426> or through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin-bh3/index.html?act_id=e202110291205111).\n"
                     await asyncio.sleep(10)
+                if len(emessage) > 0:
+                    try:
+                        user = await self.client.fetch_user(int(account['_id']))
+                        dm = user.dm_channel
+                        if dm == None:
+                            dm = await user.create_dm()
+                        embed = discord.Embed(title = "⚠ There was an error with your Hoyoverse daily rewards claim!",description = emessage, color = discord.Color.red())
+                        embed.set_footer(icon_url = self.client.user.avatar.url,text="If you have any questions, please join the support server found in the /invite command!")
+                        await dm.send(embed = embed)
+                        dmsuccess += 1
+                    except:
+                        dmerror += 1
         embed = discord.Embed(title = "Hoyoverse Daily Rewards Claimed!",description = "Today's Hoyoverse auto claim stats are as follows.",color = discord.Color.random())
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
@@ -94,6 +161,13 @@ class Hoyoverse(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         message = await channel.send(embed = embed)
         await message.publish()
+        embed = discord.Embed(title = "Hoyoverse Error DMs Send",description = "Stats are as follows.",color = discord.Color.random())
+        embed.add_field(name = "Successful DMs",value = dmsuccess)
+        embed.add_field(name = "Failed DMs",value = dmerror)
+        embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        embed.timestamp = datetime.datetime.utcnow()
+        channel = self.client.get_channel(int(1116058421146439690))
+        await channel.send(embed = embed)
         print("Hoyoverse dailies claimed!")
 
     @claim_daily.before_loop
@@ -105,6 +179,10 @@ class Hoyoverse(commands.Cog):
             next_run += datetime.timedelta(days=1)
         print("Waiting until 7am to start hoyoverse claims!")
         await discord.utils.sleep_until(next_run)
+
+    def blocking_io(self,gt,challenge,ctx):
+        self.captcha_tracking[ctx.author.id] = (self.captcha_tracking.get(ctx.author.id) or 0) + 1
+        return self.solver.geetest(gt = gt,challenge = challenge,url = "https://act.hoyolab.com/")
     
     async def cog_load(self):
         if hoyoversestore.CHARACTER_MAPPING:
@@ -464,7 +542,7 @@ class Hoyoverse(commands.Cog):
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin daily` to get a list of commands.")
     
     @daily.command(extras = {"id": "511"},help = "Claim the daily reward for the day.")
-    @commands.cooldown(1,30,commands.BucketType.user)
+    @commands.cooldown(1,120,commands.BucketType.user)
     @app_commands.describe(member = "The member to claim the daily for.")
     async def claim(self,ctx,member:discord.Member = None):
         member = member or ctx.author
@@ -472,10 +550,25 @@ class Hoyoverse(commands.Cog):
             raise errors.AccessError(message = "This user has their data set to private!")
         data = await self.get_cookies(ctx,member) 
         if not data: return
+        geetest = False
         async with ctx.typing():
             client = genshin.Client(data)
-            reward = await client.claim_daily_reward(game = genshin.Game.GENSHIN)
+            try:
+                reward = await client.claim_daily_reward(game = genshin.Game.GENSHIN)
+            except genshin.GeetestTriggered as e:
+                try:
+                    result = await asyncio.gather(asyncio.to_thread(self.blocking_io,e.gt,e.challenge),asyncio.sleep(3))
+                    data = json.loads(result[0]['code'])
+                    challenge = {"challenge":data["geetest_challenge"],"validate":data["geetest_validate"],"seccode":data["geetest_seccode"]}
+                    reward = await client.claim_daily_reward(game = genshin.Game.GENSHIN,challenge = challenge)
+                    geetest = True
+                except genshin.AlreadyClaimed as e:
+                    raise genshin.AlreadyClaimed()
+                except:
+                    raise errors.GeetestError()
             embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with `/hoyolab settings`",color = discord.Color.green())
+            if geetest:
+                embed.add_field(name = "Geetest Solved!",value = "This command triggered a Geetest Captcha, which was solved successfully.")
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
@@ -1154,7 +1247,7 @@ class Hoyoverse(commands.Cog):
         if ctx.invoked_subcommand is None:
             raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaistarrail daily` to get a list of commands.")
     
-    @honkaistarrail.command(extras = {"id": "536"},name = "claim",help = "Claim the daily reward for the day.")
+    @honkaistardaily.command(extras = {"id": "536"},name = "claim",help = "Claim the daily reward for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to claim the daily for.")
     async def honkaistarclaim(self,ctx,member:discord.Member = None):
@@ -1171,7 +1264,7 @@ class Hoyoverse(commands.Cog):
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(extras = {"id": "537"},name = "history",help = "Last 30 daily reward history information.")
+    @honkaistardaily.command(extras = {"id": "537"},name = "history",help = "Last 30 daily reward history information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.",limit = "The amount of days to pull up inforamtion for.")
     async def honkaistarhistory(self,ctx,limit: commands.Range[int,0] = None,member:discord.Member = None):
@@ -1370,7 +1463,10 @@ class Hoyoverse(commands.Cog):
             embed = discord.Embed(title = "Honkai: Star Rail Forgotten Hall Card",description = f"Season {data.season} | Start <t:{int(data.begin_time.datetime.replace(tzinfo=datetime.timezone.utc).timestamp())}:f> | End <t:{int(data.end_time.datetime.replace(tzinfo=datetime.timezone.utc).timestamp())}:f>",color = discord.Color.random())
             embed.set_image(url = f"attachment://{uid}hallcard.png")
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
-        message = await ctx.reply(file = file,embed = embed,view = view)
+        if view.children[0].options:
+            message = await ctx.reply(file = file,embed = embed,view = view)
+        else:
+            message = await ctx.reply(file = file,embed = embed)
         view.message = message
 
     @honkaistarrail.command(extras = {"id": "543"},name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")

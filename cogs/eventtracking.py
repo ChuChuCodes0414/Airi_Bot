@@ -30,7 +30,7 @@ class EventTracking(commands.Cog):
             role = methods.query(data = raw, search = ["settings","eventtracking","erole"])
             roleob = ctx.guild.get_role(role)
             if roleob not in ctx.author.roles:
-                raise errors.SetupCheckFailure(message = "You are missing the event manager role!\nIf you are a server manager, try configuring with `/settings`.")
+                raise errors.SetupCheckFailure(message = "You are missing the event manager role!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
             return True
           
         return commands.check(predicate)

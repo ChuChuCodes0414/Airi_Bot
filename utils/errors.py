@@ -2,17 +2,17 @@ import discord
 from discord.ext import commands
 
 class SetupCheckFailure(commands.CheckFailure):
-    def __init__(self,message = "A check on this command has failed!\nIf you are a server manager, try configuring with `/settings`."):
+    def __init__(self,message = "A check on this command has failed!\nIf you are a server manager, try configuring with </settings:1023762091603132501>."):
         super().__init__(message)
         self.message = message
 
 class NotEnabledError(commands.CommandError):
-    def __init__(self,message = "This feature is not enabled!\nIf you are a server manager, try configuring with `/settings`."):
+    def __init__(self,message = "This feature is not enabled!\nIf you are a server manager, try configuring with </settings:1023762091603132501>."):
         super().__init__(message)
         self.message = message
 
 class NotSetupError(commands.CommandError):
-    def __init__(self,message = "A setting required for this command is not setup!\nIf you are a server manager, try configuring with `/settings`."):
+    def __init__(self,message = "A setting required for this command is not setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>."):
         super().__init__(message)
         self.message = message
 

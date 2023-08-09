@@ -73,7 +73,7 @@ class Dev(commands.Cog):
         if message.guild:
             if message.content == self.client.user.mention:
                 data = self.client.db.guild_data.find_one({"_id":message.guild.id},{"settings.general.prefix":1}) or {}
-                prefix = methods.query(data = data,search = ["settings","general","prefix"]) or "a?"
+                prefix = methods.query(data = data,search = ["settings","general","prefix"]) or "m?"
                 embed = discord.Embed(title="Hello!",description=f"The prefix in this server is: `{prefix}`\nAll commands work on slash too!", color=discord.Color.random())
                 embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
                 await message.reply(embed = embed)
@@ -147,7 +147,7 @@ class Dev(commands.Cog):
         await self.client.reload_extension(f'cogs.{extension}')
         cog = self.client.get_cog(extension)
         if hasattr(cog,"cache"):
-            data = list(self.client.db.guild_data.find({},{"settings":1}))
+            data = list(self.client.db.guild_data.find({},{"settings":1,"utility":1}))
             cog.cache(data)
         if hasattr(cog,"user_cache"):
             data = list(self.client.db.user_data.find({},{"settings":1}))

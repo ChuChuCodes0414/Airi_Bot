@@ -64,12 +64,38 @@ class Hoyoverse(commands.Cog):
             embed.timestamp = datetime.datetime.utcnow()
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             await channel.send(embed = embed)
+            self.captcha_tracking = {}
+
+    async def claim_genshin_daily(self,gclient,id):
+        try:
+            await gclient.claim_daily_reward(game = genshin.Game.GENSHIN)
+            return True, False
+        except genshin.GeetestTriggered as e:
+            print(f"Geetest triggered for Genshin: {id}")
+            try:
+                result = await asyncio.gather(asyncio.to_thread(self.blocking_io,e.gt,e.challenge),asyncio.sleep(3))
+                data = json.loads(result[0]['code'])
+                challenge = {"challenge":data["geetest_challenge"],"validate":data["geetest_validate"],"seccode":data["geetest_seccode"]}
+                await gclient.claim_daily_reward(game = genshin.Game.GENSHIN,challenge = challenge)
+                return True, True
+            except Exception as e:
+                print(f"Failed to solve Geetest triggered for Genshin: {id}: {e}")
+                return False, "- A Geetest Captcha was triggered while trying to claim your Genshin daily rewards, and the bot could not solve it! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481)\n"
+        except genshin.InvalidCookies as e:
+            error += 1
+            print(f"Invalid cookies triggered for Genshin: {id}")
+            self.client.db.user_data.update_one({"_id":int(id)},{"$unset":{"hoyoverse.settings.autoclaim":""}})
+            return False, "- Your cookies are invalid, and thus your Genshin daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
+        except Exception as e:
+            print(f"Error for {id}: {e}")
+            return False, "- A error occured while claiming your Genshin daily rewards. You can try claiming manually through </genshin daily claim:999438437906124836> or through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481).\n"
 
     @tasks.loop(hours = 24)
     async def claim_daily(self):
         print("Claiming hoyoverse dailies...")
         accounts = self.client.db.user_data.find({"$or":[{"hoyoverse.settings.autoclaim":True},{"hoyoverse.settings.hautoclaim":True},{"hoyoverse.settings.hsautoclaim":True}]},{"hoyoverse":1})
         success,error,hsuccess,herror,hssuccess,hserror,dmsuccess,dmerror = 0,0,0,0,0,0,0,0
+        captchas,captchaf = 0,0
         for account in accounts:
             hoyosettings = account.get("hoyoverse",{}).get("settings",{})
             if "ltuid" in hoyosettings and "ltoken" in hoyosettings:
@@ -79,31 +105,21 @@ class Hoyoverse(commands.Cog):
                 client = genshin.Client({'ltuid':ltuid,'ltoken':ltoken})
                 emessage = ""
                 if hoyosettings.get("autoclaim"):
-                    try:
-                        await client.claim_daily_reward(game = genshin.Game.GENSHIN)
+                    status,message = await self.claim_genshin_daily(client,account['_id'])
+                    if status:
                         success += 1
-                    except genshin.GeetestTriggered as e:
-                        print(f"Geetest triggered for Genshin: {account['_id']}")
-                        try:
-                            result = await asyncio.gather(asyncio.to_thread(self.blocking_io,e.gt,e.challenge),asyncio.sleep(3))
-                            data = json.loads(result[0]['code'])
-                            challenge = {"challenge":data["geetest_challenge"],"validate":data["geetest_validate"],"seccode":data["geetest_seccode"]}
-                            await client.claim_daily_reward(game = genshin.Game.GENSHIN,challenge = challenge)
+                        if message: captchas += 1
+                    else:
+                        captchaf += 1
+                        emessage += message
+                        status,message = await self.claim_genshin_daily(client,account['_id'])
+                        if status:
                             success += 1
-                        except:
+                            if message: captchas += 1
+                        else:
+                            captchaf += 1
+                            emessage += message
                             error += 1
-                            print(f"Failed to solve Geetest triggered for Genshin: {account['_id']}")
-                            emessage += "- A Geetest Captcha was triggered while trying to claim your Genshin daily rewards, and the bot could not solve it! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481)\n"
-                    except genshin.InvalidCookies as e:
-                        error += 1
-                        print(f"Invalid cookies triggered for Genshin: {account['_id']}")
-                        emessage += "- Your cookies are invalid, and thus your Genshin daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
-                        self.client.db.user_data.update_one({"_id":int(account['_id'])},{"$unset":{"hoyoverse.settings.autoclaim":""}})
-                    except Exception as e:
-                        error += 1
-                        print(f"Error for {account['_id']}: {e}")
-                        emessage += "- A error occured while claiming your Genshin daily rewards. You can try claiming manually through </genshin daily claim:999438437906124836> or through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481).\n"
-                    await asyncio.sleep(10)
                 if hoyosettings.get("hautoclaim"):
                     try:
                         await client.claim_daily_reward(game = genshin.Game.HONKAI)
@@ -156,6 +172,7 @@ class Hoyoverse(commands.Cog):
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
         embed.add_field(name = "<:honkaistarrailicon:1101673399996121178> Honkai: Star Rail Claims",value = f"Successful Claims: `{hssuccess}`\nFailed Claims: `{hserror}`")
+        embed.add_field(name = "<:geetestcringe:1138946483031379988> Geetest Triggers",value = f"Successful Solves: {captchas}\nFailed Solves: {captchaf}\nTotal Cost: ${(captchas+captchaf)*0.003} USD",inline = False)
         embed.timestamp = datetime.datetime.utcnow()
         channel = self.client.get_channel(int(1002939673120870401))
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -180,8 +197,7 @@ class Hoyoverse(commands.Cog):
         print("Waiting until 7am to start hoyoverse claims!")
         await discord.utils.sleep_until(next_run)
 
-    def blocking_io(self,gt,challenge,ctx):
-        self.captcha_tracking[ctx.author.id] = (self.captcha_tracking.get(ctx.author.id) or 0) + 1
+    def blocking_io(self,gt,challenge):
         return self.solver.geetest(gt = gt,challenge = challenge,url = "https://act.hoyolab.com/")
     
     async def cog_load(self):
@@ -210,6 +226,7 @@ class Hoyoverse(commands.Cog):
     
     async def cog_unload(self):
         self.claim_daily.cancel()
+        self.post_captcha.cancel()
     
     def bot_mod_check():
         async def predicate(ctx):
@@ -229,7 +246,7 @@ class Hoyoverse(commands.Cog):
             ltuid = rsa.decrypt(binascii.unhexlify(ltuid),self.private).decode('utf8')
             ltoken = rsa.decrypt(binascii.unhexlify(ltoken),self.private).decode('utf8')
             return {"ltuid": ltuid ,"ltoken": ltoken}
-        raise errors.NotSetupError(message = "Cookies for this user are not setup!\nIf you are this user, try `/hoyolab link`.")
+        raise errors.NotSetupError(message = "Cookies for this user are not setup!\nIf you are this user, try </hoyolab link:999438437906124835>.")
 
     async def get_redeem_cookies(self,ctx,user):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings":1})
@@ -238,21 +255,21 @@ class Hoyoverse(commands.Cog):
             account_id = rsa.decrypt(binascii.unhexlify(account_id),self.private).decode('utf8')
             cookie_token = rsa.decrypt(binascii.unhexlify(cookie_token),self.private).decode('utf8')
             return {"account_id": account_id ,"cookie_token": cookie_token}
-        raise errors.NotSetupError(message = "Cookies for this user are not setup!\nIf you are this user, try `/hoyolab link`.")
+        raise errors.NotSetupError(message = "Cookies for this user are not setup!\nIf you are this user, try </hoyolab link:999438437906124835>.")
 
     async def get_authkey(self,ctx,user):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.authkey":1})
         authkey = methods.query(data = raw, search = ["hoyoverse","settings","authkey"])
         if authkey:
             return authkey
-        raise errors.NotSetupError(message = "Authkey for this user is not setup!\nIf you are this user, try `/genshin authkey`.")
+        raise errors.NotSetupError(message = "Authkey for this user is not setup!\nIf you are this user, try </genshin authkey:999438437906124836>.")
 
     async def get_hauthkey(self,ctx,user):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.hauthkey":1})
         authkey = methods.query(data = raw, search = ["hoyoverse","settings","hauthkey"])
         if authkey:
             return authkey
-        raise errors.NotSetupError(message = "Authkey for this user is not setup!\nIf you are this user, try `/honkaistarrail authkey`.")
+        raise errors.NotSetupError(message = "Authkey for this user is not setup!\nIf you are this user, try </honkaistarrail authkey:1101694558842126426>.")
     
     async def privacy_check(self,ctx,user):
         if ctx.author == user:
@@ -270,31 +287,31 @@ class Hoyoverse(commands.Cog):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.uid"})
         uid = methods.query(data = raw, search = ["hoyoverse","settings","uid"])
         if not uid:
-            raise errors.NotSetupError(message = "The Genshin UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
+            raise errors.NotSetupError(message = "The Genshin UID for this user is not setup!\nIf you are this user, try </hoyolab settings:999438437906124835>")
         return uid
 
     async def pull_huid(self,user):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.huid"})
         uid = methods.query(data = raw, search = ["hoyoverse","settings","huid"])
         if not uid:
-            raise errors.NotSetupError(message = "The Honkai Impact 3rd UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
+            raise errors.NotSetupError(message = "The Honkai Impact 3rd UID for this user is not setup!\nIf you are this user, try </hoyolab settings:999438437906124835>")
         return uid
 
     async def pull_hsuid(self,user):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.hsuid"})
         uid = methods.query(data = raw, search = ["hoyoverse","settings","hsuid"])
         if not uid:
-            raise errors.NotSetupError(message = "The Honkai: Star Rail UID for this user is not setup!\nIf you are this user, try `/hoyolab settings`")
+            raise errors.NotSetupError(message = "The Honkai: Star Rail UID for this user is not setup!\nIf you are this user, try </hoyolab settings:999438437906124835>")
         return uid
 
     @commands.hybrid_group(extras = {"id": "500"},help = "The command group to manage your account details.")
     async def hoyolab(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help hoyolab` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `hoyolab` to get a list of commands.")
     
     @hoyolab.command(extras = {"id": "501"}, help = "Link your account!")
     async def link(self,ctx):
-        embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
+        embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at </hoyolab information:999438437906124835>.",color = discord.Color.random())
         embed.add_field(name = "Getting Cookies",value = 'From the browser: \n1. Go to [hoyolab.com](https://hoyolab.com).\n2. Login to your account.\n3. In your browser search bar, replace the hoyolab URL with `javascript:`, then paste the code.\n4. Press `Click here to copy!`, and then press `Enter Information` on the bot menu to paste your information in.',inline = False)
         embed.set_image(url = "https://cdn.discordapp.com/attachments/870127759526101032/1024473968641593414/howtocookie.gif")
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -307,7 +324,7 @@ class Hoyoverse(commands.Cog):
         embed = discord.Embed(title = "Hoyoverse Group Information",description = "All you need to know about the commands!",color = discord.Color.random())
         embed.add_field(name = "Cookie Information",value = "Your cookies are needed as authentication to access any related data, such as your realtimenotes or character information. This information is stored securely, and cannot be used to do any serious damage to your account. However, there is always some risk is giving this information out to the bot, so plan accordingly.",inline = False)
         embed.add_field(name = "Authkey Information",value = "Your authkey is needed for any transaction information (ex. topups) as well as wishing and warp data. This, unlike cookies, has no risk to yourself when sharing the link.",inline = False)
-        embed.add_field(name = "Data Removal",value = "At any time, you can remove all of your data from the bot with `/hoyolab remove`.",inline = False)
+        embed.add_field(name = "Data Removal",value = "At any time, you can remove all of your data from the bot with </hoyolab remove:999438437906124835>.",inline = False)
         embed.add_field(name = "Terms and Conditions",value = "As a user, you agree to not continually request uneeded data. Once hitting the rate limit, you will not continue to run commands.\nYou accept that the development team of the bot has no liability over your account information or use.\nSome assets within this section of the bot are owned solely by Cognosphere PTE. LTD. ",inline = False)
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
@@ -367,7 +384,7 @@ class Hoyoverse(commands.Cog):
     @commands.hybrid_group(extras = {"id": "504"},help = "The command group to manage Genshin Impact information.")
     async def genshin(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `genshin` to get a list of commands.")
     
     @genshin.command(extras = {"id": "505"}, help = "Overview statistics like achievement count and days active.")
     @commands.cooldown(1,30,commands.BucketType.user)
@@ -434,7 +451,7 @@ class Hoyoverse(commands.Cog):
             now = discord.utils.utcnow()
             nowunix = int(now.replace(tzinfo=datetime.timezone.utc).timestamp())
             
-            embed = discord.Embed(title = f"Real Time Notes for {member}",description = f"As of <t:{nowunix}:f>",color = discord.Color.random())
+            embed = discord.Embed(title = f"Real Time Notes for {member}",description = f"As of <t:{nowunix}:f>\nFor Account UID: `{uid}`",color = discord.Color.random())
             resinfull = now + data.remaining_resin_recovery_time
             if resinfull == now:
                 embed.add_field(name = "<:resin:1041874856905556008> Resin",value = f"{data.current_resin}/{data.max_resin}\nResin is currently full!",inline = False)
@@ -466,9 +483,9 @@ class Hoyoverse(commands.Cog):
                     if expedition.status == "Ongoing":
                         completein = now + expedition.remaining_time
                         completeunix = int(completein.replace(tzinfo=datetime.timezone.utc).timestamp())
-                        expeditionres += f"**{expedition.character.name}:** Complete <t:{completeunix}:R>\n"
+                        expeditionres += f"**Expedition:** Complete <t:{completeunix}:R>\n"
                     else:
-                        expeditionres += f"**{expedition.character.name}:** Finished!\n"
+                        expeditionres += f"**Expedition:** Finished!\n"
                 embed.add_field(name = "<:expedition:1041876327483064441> Expeditions",value = expeditionres,inline = False)
             else:
                 embed.add_field(name = "<:expedition:1041876327483064441> Expeditions",value = f"None",inline = False)
@@ -486,9 +503,8 @@ class Hoyoverse(commands.Cog):
         if not data: return
         async with ctx.typing():
             client = genshin.Client(data)
-            uid = await self.pull_uid(member)
             await client.redeem_code(code,game = genshin.Game.GENSHIN)
-            embed = discord.Embed(description = f"Redeemed `{code}` for the account belonging to **{member}**! Please check your in game mail for more details.\nDid you know we now have auto redeem? Check it out with `/hoyolab settings`",color = discord.Color.green())
+            embed = discord.Embed(description = f"Redeemed `{code}` for the account belonging to **{member}**! Please check your in game mail for more details.\nDid you know we now have auto redeem? Check it out with </hoyolab settings:999438437906124835>",color = discord.Color.green())
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
@@ -539,7 +555,7 @@ class Hoyoverse(commands.Cog):
     @genshin.group(extras = {"id": "510"}, help = "Genshin daily check-in management.")
     async def daily(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin daily` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `genshin dailies` to get a list of commands.")
     
     @daily.command(extras = {"id": "511"},help = "Claim the daily reward for the day.")
     @commands.cooldown(1,120,commands.BucketType.user)
@@ -557,6 +573,7 @@ class Hoyoverse(commands.Cog):
                 reward = await client.claim_daily_reward(game = genshin.Game.GENSHIN)
             except genshin.GeetestTriggered as e:
                 try:
+                    self.captcha_tracking[ctx.author.id] = (self.captcha_tracking.get(ctx.author.id) or 0) + 1
                     result = await asyncio.gather(asyncio.to_thread(self.blocking_io,e.gt,e.challenge),asyncio.sleep(3))
                     data = json.loads(result[0]['code'])
                     challenge = {"challenge":data["geetest_challenge"],"validate":data["geetest_validate"],"seccode":data["geetest_seccode"]}
@@ -564,9 +581,10 @@ class Hoyoverse(commands.Cog):
                     geetest = True
                 except genshin.AlreadyClaimed as e:
                     raise genshin.AlreadyClaimed()
-                except:
+                except Exception as e:
+                    print(e)
                     raise errors.GeetestError()
-            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with `/hoyolab settings`",color = discord.Color.green())
+            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with </hoyolab settings:999438437906124835>",color = discord.Color.green())
             if geetest:
                 embed.add_field(name = "Geetest Solved!",value = "This command triggered a Geetest Captcha, which was solved successfully.")
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -627,7 +645,7 @@ class Hoyoverse(commands.Cog):
             uid = await self.pull_uid(member)
             characters = await client.get_genshin_characters(uid = uid)
             view = CharacterView(ctx,characters,uid)
-            embed = discord.Embed(title = "Genshin Impact Characters",description = "Use the dropdown below to get started!",color = discord.Color.random())
+            embed = discord.Embed(title = "Genshin Impact Characters",description = f"Use the dropdown below to get started!\nAccount UID: `{uid}`",color = discord.Color.random())
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
@@ -635,7 +653,7 @@ class Hoyoverse(commands.Cog):
     @genshin.group(extras = {"id": "515"}, help = "Do cost calculations for Genshin characters, weapons, and artifacts.")
     async def calculator(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help genshin calculator` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `genshin calculator` to get a list of commands.")
     
     @calculator.command(extras = {"id": "516"},help = "Do character leveling calculations")
     @commands.cooldown(1,30,commands.BucketType.user)
@@ -888,7 +906,7 @@ class Hoyoverse(commands.Cog):
 
     @genshin.command(extras = {"id": "520"},help = "Set Genshin authkey in the bot.")
     async def authkey(self,ctx):
-        embed = discord.Embed(title = "Hoyoverse Authkey Linking",description = "This is required to make any wish/transaction commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
+        embed = discord.Embed(title = "Hoyoverse Authkey Linking",description = "This is required to make any wish/transaction commands work! You can read more about this at </hoyolab information:999438437906124835>.",color = discord.Color.random())
         embed.add_field(name = "Getting Authkey",value = "1. Open up wish history in game.\n2. Open Windows Powershell from your start menu.\n3. Copy the script from the button 'Get Script', and paste it in the Powershell window.\n4. Click the button below, and paste the link into the dialogue box.",inline = False)
         embed.set_image(url = "https://cdn.discordapp.com/attachments/870127759526101032/1081033414486020136/ezgif.com-video-to-gif.gif")
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -1091,12 +1109,12 @@ class Hoyoverse(commands.Cog):
     @commands.hybrid_group(extras = {"id": "525"},help = "The command group to see Honkai Impact 3rd information.")
     async def honkaiimpact3rd(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaiimpact3rd` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `honkaiimpact3rd` to get a list of commands.")
         
     @honkaiimpact3rd.group(extras = {"id": "526"},name = "daily",help = "Honkai Impact 3rd daily checkin management.")
     async def honkaidaily(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaiimpact3rd daily` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `honkaiimpact3rd dailies` to get a list of commands.")
     
     @honkaidaily.command(extras = {"id": "527"},name = "claim", help = "Claim daily rewards for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
@@ -1110,7 +1128,7 @@ class Hoyoverse(commands.Cog):
         async with ctx.typing():
             client = genshin.Client(data)
             reward = await client.claim_daily_reward(game = genshin.Game.HONKAI)
-            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with `/hoyolab settings`",color = discord.Color.green())
+            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with `</hoyolab settings:999438437906124835>`",color = discord.Color.green())
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
@@ -1148,7 +1166,7 @@ class Hoyoverse(commands.Cog):
             uid = await self.pull_huid(member)
             data = await client.get_honkai_battlesuits(uid)
             view = BattlesuitView(ctx,data)
-            embed = discord.Embed(title = f"Battlesuits for {member}",description = f"{len(data)} Battlesuits Owned",color = discord.Color.random())
+            embed = discord.Embed(title = f"Battlesuits for {member}",description = f"{len(data)} Battlesuits Owned\nAccount UID: `{uid}`",color = discord.Color.random())
             embed.set_footer(text = "Use the dropdown below to view their battlesuits!")
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
@@ -1168,7 +1186,7 @@ class Hoyoverse(commands.Cog):
             data = await client.get_honkai_old_abyss(uid)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no old abyss data for past cycles!")
-            embed = discord.Embed(title = f"Old Abyss for {member}",description = f"{len(data)} reports found.",color = discord.Color.random())
+            embed = discord.Embed(title = f"Old Abyss for {member}",description = f"{len(data)} reports found\nAccount UID: `{uid}`",color = discord.Color.random())
             embed.set_footer(text = "Use the dropdown below to see report information!")
             view = OldAbyssView(ctx,data)
         message = await ctx.reply(embed = embed,view = view)
@@ -1189,7 +1207,7 @@ class Hoyoverse(commands.Cog):
             data = await client.get_honkai_memorial_arena(uid)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no Memorial Arena data for past cycles!")
-            embed = discord.Embed(title = f"Memorial Arena for {member}",description = f"{len(data)} reports found.",color = discord.Color.random())
+            embed = discord.Embed(title = f"Memorial Arena for {member}",description = f"{len(data)} reports found\nAccount UID: `{uid}`",color = discord.Color.random())
             embed.set_footer(text = "Use the dropdown below to see report information!")
             view = MemorialArenaView(ctx,data)
         message = await ctx.reply(embed = embed,view = view)
@@ -1210,7 +1228,7 @@ class Hoyoverse(commands.Cog):
             data = await client.get_honkai_elysian_realm(uid)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no Elysian Realm data for this cycle!")
-            embed = discord.Embed(title = f"Elysian Realm for {member}",description = f"{len(data)} reports found.",color = discord.Color.random())
+            embed = discord.Embed(title = f"Elysian Realm for {member}",description = f"{len(data)} reports found\nAccount UID: `{uid}`",color = discord.Color.random())
             embed.set_footer(text = "Use the dropdown below to see report information!")
             view = ElysianRealmView(ctx,data)
         message = await ctx.reply(embed = embed,view = view)
@@ -1231,7 +1249,7 @@ class Hoyoverse(commands.Cog):
             data = await self.pull_huid(member)
             if not data or len(data) < 1:
                 raise errors.NoDataError(message = "This user has no Superstring Abyss data for past cycles!")
-            embed = discord.Embed(title = f"Superstring Abyss for {member}",description = f"{len(data)} reports found.",color = discord.Color.random())
+            embed = discord.Embed(title = f"Superstring Abyss for {member}",description = f"{len(data)} reports found\nAccount UID: `{uid}`",color = discord.Color.random())
             embed.set_footer(text = "Use the dropdown below to see report information!")
             view = SuperstringAbyssView(ctx,data)
         message = await ctx.reply(embed = embed,view = view)
@@ -1240,12 +1258,12 @@ class Hoyoverse(commands.Cog):
     @commands.hybrid_group(extras = {"id": "534"},help = "The command group to manage Honkai: Star Rail information.")
     async def honkaistarrail(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaistarrail` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `honkaistarrail` to get a list of commands.")
     
     @honkaistarrail.group(extras = {"id": "535"}, name = "daily",help = "Honkai Star Rail daily check-in management.")
     async def honkaistardaily(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help honkaistarrail daily` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `honkaistarrail dailies` to get a list of commands.")
     
     @honkaistardaily.command(extras = {"id": "536"},name = "claim",help = "Claim the daily reward for the day.")
     @commands.cooldown(1,30,commands.BucketType.user)
@@ -1294,7 +1312,6 @@ class Hoyoverse(commands.Cog):
         if not data: return
         async with ctx.typing():
             client = genshin.Client(data)
-            uid = await self.pull_uid(member)
             await client.redeem_code(code,game = genshin.Game.STARRAIL)
             embed = discord.Embed(description = f"Redeemed `{code}` for the account belonging to **{member}**! Please check your in game mail for more details.",color = discord.Color.green())
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -1404,7 +1421,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(file = file,embed = embed)
     
-    @honkaistarrail.command(extras = {"id":548},name = "realtimenotes",aliases = ['rtn'],help = "Get real-time notes information like trailblaze power.")
+    @honkaistarrail.command(extras = {"id":"548"},name = "realtimenotes",aliases = ['rtn'],help = "Get real-time notes information like trailblaze power.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
     async def hsrealtimenotes(self,ctx,member:discord.Member = None):
@@ -1420,7 +1437,7 @@ class Hoyoverse(commands.Cog):
             now = discord.utils.utcnow()
             nowunix = int(now.replace(tzinfo=datetime.timezone.utc).timestamp())
 
-            embed = discord.Embed(title = f"Real Time Notes for {member}",description = f"As of <t:{nowunix}:f>",color = discord.Color.random())
+            embed = discord.Embed(title = f"Real Time Notes for {member}",description = f"As of <t:{nowunix}:f>\nFor Account UID: `{uid}`",color = discord.Color.random())
             trailblazefull = now + data.stamina_recover_time
             if trailblazefull == now:
                 embed.add_field(name = "<:trailblazepower:1116016414067785800> Trailblaze Power",value = f"{data.current_stamina}/{data.max_stamina}\nTrailblaze Power is currently full!",inline = False)
@@ -1441,7 +1458,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(extras = {"id":549},help = "View forgotten hall data from this cycle or the previous one.")
+    @honkaistarrail.command(extras = {"id":"549"},help = "View forgotten hall data from this cycle or the previous one.")
     @app_commands.describe(member = "The member to check information for.",cycle = "Either the current forgotten hall period or the previous one.")
     async def forgottenhall(self,ctx,member:discord.Member = None,cycle:Literal['current','previous'] = None):
         member = member or ctx.author
@@ -1469,9 +1486,25 @@ class Hoyoverse(commands.Cog):
             message = await ctx.reply(file = file,embed = embed)
         view.message = message
 
+    '''
+        @honkaistarrail.command(extras = {"id":"550"},name = "diary")
+    async def hsdiary(self,ctx,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            uid = await self.pull_hsuid(member)
+            diary = await client.get_starrail_diary(uid = uid)
+            print(diary)
+        await ctx.reply("done!")
+    '''
+    
     @honkaistarrail.command(extras = {"id": "543"},name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")
     async def hsauthkey(self,ctx):
-        embed = discord.Embed(title = "Honkai: Star Rail Authkey Linking",description = "This is required to make any warp commands work! You can read more about this at `/hoyolab information`.",color = discord.Color.random())
+        embed = discord.Embed(title = "Honkai: Star Rail Authkey Linking",description = "This is required to make any warp commands work! You can read more about this at </hoyolab information:999438437906124835>.",color = discord.Color.random())
         embed.add_field(name = "Getting Authkey",value = "1. Open up warp history in game.\n2. Open Windows Powershell from your start menu.\n3. Copy the script from the button 'Get Script', and paste it in the Powershell window.\n4. Click the button below, and paste the link into the dialogue box.",inline = False)
         embed.set_image(url = "https://cdn.discordapp.com/attachments/870127759526101032/1081033414486020136/ezgif.com-video-to-gif.gif")
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -1593,7 +1626,7 @@ class SettingsView(discord.ui.View):
         hautoclaim = methods.query(data = data,search = ["hoyoverse","settings","hautoclaim"])
         hsautoredeem = methods.query(data = data,search = ["hoyoverse","settings","hsautoredeem"])
         hsautoclaim = methods.query(data = data,search = ["hoyoverse","settings","hsautoclaim"])
-        embed = discord.Embed(title = "Hoyoverse User Settings",description = "To setup cookies, use `/hoyolab link`\nTo setup authkey, use `/genshin authkey`",color = discord.Color.random())
+        embed = discord.Embed(title = "Hoyoverse User Settings",description = "To setup cookies, use </hoyolab link:999438437906124835>\nTo setup authkey, use </genshin authkey:999438437906124836> and/or </honkaistarrail authkey:1101694558842126426>",color = discord.Color.random())
         embed.add_field(name = "Genshin UID",value = str(uid))
         embed.add_field(name = "Honkai Impact 3rd UID",value = str(huid))
         embed.add_field(name = "Honkai: Star Rail UID",value = str(hsuid))
@@ -2797,7 +2830,7 @@ class AuthkeyView(ui.View):
     
     @discord.ui.button(label = "1. Get Script",style = discord.ButtonStyle.blurple)
     async def getscript(self,interaction,button):
-        await interaction.response.send_message("```Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex \"&{$((New-Object System.Net.WebClient).DownloadString('https://gist.githubusercontent.com/ChuChuCodes0414/fc14f48b92a15a205532cf3080762ce8/raw/cac385c9427bd2d8362ac90240fc69a2b4b64d1b/authkey.ps1'))} global\"```",ephemeral = True)
+        await interaction.response.send_message('```Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex "&{$((New-Object System.Net.WebClient).DownloadString(\'https://gist.githubusercontent.com/ChuChuCodes0414/fc14f48b92a15a205532cf3080762ce8/raw/28f5c25983765e6658f7ea47dbcf81a29262efbd/authkey.ps1\'))} global"```',ephemeral = True)
     
     @discord.ui.button(label = "2. Enter Information",style = discord.ButtonStyle.blurple)
     async def enterinformation(self,interaction,button):
@@ -2942,7 +2975,7 @@ class HallView(ui.View):
             copy_editable.text((copy.width - 20 - (goldbackresized.width+10)*4,currenth-h4-2),node1_text,(255,255,255),font = pillow.small_font)
 
             for k in range(0,len(floor.node_2.avatars)):
-                character = floor.node_1.avatars[k]
+                character = floor.node_2.avatars[k]
                 if os.path.exists(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}"):
                     characterimg = Image.open(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
                 else:

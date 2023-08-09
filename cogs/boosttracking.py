@@ -1,9 +1,9 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, menus
 from discord import app_commands
 import datetime
-from utils import errors
-from utils import methods
+from utils import errors, methods, classes
+from itertools import starmap
 
 class BoostTracking(commands.Cog):
     """
@@ -152,7 +152,7 @@ class BoostTracking(commands.Cog):
     @app_commands.describe(member = "The member to set boost information for.")
     @app_commands.describe(boosts = "The number of boosts the member has.")
     async def boostset(self,ctx,member:discord.Member,boosts: commands.Range[int,0]):
-        boostcount = boostcount = await self.pull_boosts(ctx.guild,member)
+        boostcount = await self.pull_boosts(ctx.guild,member)
         if boosts == 0:
             self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset" : {f"boosttracking.{member.id}":""}})
         else:
@@ -161,6 +161,43 @@ class BoostTracking(commands.Cog):
         embed = discord.Embed(title = f"Boost Count Updated for {member}!", description = f"Previous Boost Count: `{boostcount}`\nNew Boost Count: `{boosts}`",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
+
+    @commands.hybrid_command(extras = {"id": "13"},help = "View boost leaderboard for all members.")
+    @boost_active_check()
+    async def boostleaderboard(self,ctx):
+        async with ctx.typing():
+            raw = self.client.db.guild_data.find_one({"_id":ctx.guild.id},{"boosttracking":1}) or {}
+            data = methods.query(data = raw, search = ["boosttracking"]) or {}
+
+            if not data:
+                users,log = [],{}
+            else:
+                users,log =  sorted(data, key=data.get, reverse=True) , data
+            
+            formatter = BoostLBPageSource(users,log)
+            menu = classes.MenuPages(formatter)
+            await menu.start(ctx)
+
+class BoostLBPageSource(menus.ListPageSource):
+    def __init__(self, data, log):
+        super().__init__(data, per_page=10)
+        self.log = log
+    def format_leaderboard_entry(self, no, user):
+        return f"**{no}. <@{user}>** `{self.log[user]} Server Boosts`"
+    async def format_page(self, menu, users):
+        page = menu.current_page
+        max_page = self.get_max_pages()
+        starting_number = page * self.per_page + 1
+        iterator = starmap(self.format_leaderboard_entry, enumerate(users, start=starting_number))
+        page_content = "\n".join(iterator)
+        embed = discord.Embed(
+            title=f"Server Boosts Leaderboard [{page + 1}/{max_page}]", 
+            description=page_content,
+            color= discord.Color.random()
+        )
+        embed.set_footer(text=f"Use the buttons below to navigate pages!") 
+        return embed
+
 
 async def setup(client):
     await client.add_cog(BoostTracking(client))

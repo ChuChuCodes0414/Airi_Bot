@@ -105,7 +105,7 @@ class ErrorHandling(commands.Cog):
             return
         
         if isinstance(error,commands.CheckFailure):
-            await self.send_error_embed(ctx,"A custom rules check failed.\nServer managers can check rules with `/rules view`.")
+            await self.send_error_embed(ctx,"A custom rules check failed.\nServer managers can check rules with </rules view:1108481999225753623>.")
             return
         
         if isinstance(error, commands.MaxConcurrencyReached):

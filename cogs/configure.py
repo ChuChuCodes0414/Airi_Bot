@@ -118,7 +118,7 @@ class Configure(commands.Cog):
     @commands.has_permissions(manage_guild = True)
     async def rules(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help rules` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `rules` to get a list of commands.")
     
     @rules.command(help = "View what commands have rules on them.")
     @commands.has_permissions(manage_guild = True)

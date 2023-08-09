@@ -45,7 +45,7 @@ class Client(commands.Bot):
     
     async def load_caches(self):
         print("Caching cogs...")
-        data = list(self.db.guild_data.find({},{"settings":1}))
+        data = list(self.db.guild_data.find({},{"settings":1,"utility":1}))
         userdata = list(self.db.user_data.find({},{"settings":1}))
         for cog, instance in self.cogs.items():
             if hasattr(instance,"cache"):

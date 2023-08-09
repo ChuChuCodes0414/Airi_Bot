@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from firebase_admin import db
 from datetime import datetime
 import asyncio
 from discord import app_commands

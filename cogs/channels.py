@@ -33,14 +33,14 @@ class Channels(commands.Cog):
         
         channels =  methods.query(data=raw, search=["settings", "channels","lchannels"])
         if not channels:
-            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with `/settings`.")
+            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         
         role = methods.query(data = raw, search = ["settings", "channels", "lrole"])
         if role:
             role = ctx.guild.get_role(role)
 
             if not role:
-                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with `/settings`.")
+                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         else:
             role = ctx.guild.default_role
         
@@ -98,14 +98,14 @@ class Channels(commands.Cog):
         
         channels =  methods.query(data=raw, search=["settings", "channels","lchannels"])
         if not channels:
-            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with `/settings`.")
+            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         
         role = methods.query(data = raw, search = ["settings", "channels", "lrole"])
         if role:
             role = ctx.guild.get_role(role)
 
             if not role:
-                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with `/settings`.")
+                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         else:
             role = ctx.guild.default_role
         
@@ -164,14 +164,14 @@ class Channels(commands.Cog):
         
         channels =  methods.query(data=raw, search=["settings", "channels","lchannels"])
         if not channels:
-            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with `/settings`.")
+            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         
         role = methods.query(data = raw, search = ["settings", "channels", "lrole"])
         if role:
             role = ctx.guild.get_role(role)
 
             if not role:
-                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with `/settings`.")
+                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         else:
             role = ctx.guild.default_role
         
@@ -229,14 +229,14 @@ class Channels(commands.Cog):
         
         channels =  methods.query(data=raw, search=["settings", "channels","lchannels"])
         if not channels:
-            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with `/settings`.")
+            raise errors.NotSetupError(message = "Lockdown channels are not setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         
         role = methods.query(data = raw, search = ["settings", "channels", "lrole"])
         if role:
             role = ctx.guild.get_role(role)
 
             if not role:
-                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with `/settings`.")
+                raise errors.NotSetupError(message = "Lockdown role is not properly setup!\nIf you are a server manager, try configuring with </settings:1023762091603132501>.")
         else:
             role = ctx.guild.default_role
         

@@ -91,7 +91,7 @@ class Fun(commands.Cog):
         if choice == "Yes.":
             res = await self.grant_badge(ctx.author,"8ball")
             if res.modified_count == 1:
-                des += "\n\nYou earned the <:8ballBadge:870129771122671627> **8ball** badge! Use `/profile` to see your badges."
+                des += "\n\nYou earned the <:8ballBadge:870129771122671627> **8ball** badge! Use </profile:1103474987643441154> to see your badges."
         embed = discord.Embed(title = question,description = des,color = discord.Color.random())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
@@ -112,7 +112,7 @@ class Fun(commands.Cog):
         if iq == 1000:
             res = await self.grant_badge(ctx.author,"iq")
             if res.modified_count == 1:
-                des += "\n\nYou earned the <:IQBadge:870129049232637992> **IQ** badge! Use `/profile` to see your badges."
+                des += "\n\nYou earned the <:IQBadge:870129049232637992> **IQ** badge! Use </profile:1103474987643441154> to see your badges."
 
         embed=discord.Embed(description= des,color = discord.Color.random())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -134,7 +134,7 @@ class Fun(commands.Cog):
         if nab == 100:
             res = await self.grant_badge(ctx.author,"nab")
             if res.modified_count == 1:
-                des += "\n\nYou earned the <:NabBadge:870130999500095549> **Nab** badge! Use `/profile` to see your badges."
+                des += "\n\nYou earned the <:NabBadge:870130999500095549> **Nab** badge! Use </profile:1103474987643441154> to see your badges."
         
         embed=discord.Embed(description= des,color = discord.Color.random())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
@@ -337,7 +337,7 @@ class Fun(commands.Cog):
                 if len(order) >= 20:
                     res = await self.grant_badge(ctx.author,"color")
                     if res.modified_count == 1:
-                        des += "\n\nYou earned the <:ColorBadge:912893729482883142> **Color Game** badge! Use `/profile` to see your badges."
+                        des += "\n\nYou earned the <:ColorBadge:912893729482883142> **Color Game** badge! Use </profile:1103474987643441154> to see your badges."
                 embed = discord.Embed(title = f"{ctx.author}'s Color Game",description = des,color = discord.Color.red())
                 view = ColorGame(ctx)
                 view.children[4].disabled = True

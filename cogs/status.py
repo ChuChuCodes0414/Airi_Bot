@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from firebase_admin import db
 from datetime import datetime
 import asyncio
 from discord import app_commands
@@ -32,7 +31,7 @@ class Status(commands.Cog):
     @commands.hybrid_command(extras = {"id": "301"},help = "Get information about the bot.")
     async def about(self,ctx):
         embed = discord.Embed(title = self.client.user.name,description = "A multipurpose utility bot with a little bit of everything!\nCreated and maintained by ChuGames#0001",color = discord.Color.random())
-        embed.add_field(name ="Current Version",value = f"3.1.2",inline = False)
+        embed.add_field(name ="Current Version",value = f"3.2",inline = False)
         embed.add_field(name="Server Count", value=f"{len(self.client.guilds)} servers")
         embed.add_field(name="Member Count", value=f"{len(self.client.users)} members")
         embed.add_field(name="Main Libraries Used", value=f"discord.py (https://github.com/Rapptz/discord.py)\ngenshin.py (https://github.com/thesadru/genshin.py)\nEnkaCard (https://github.com/DEViantUA/EnkaCard)\ngoogletrans (https://github.com/ssut/py-googletrans)\nlangcodes (https://github.com/rspeer/langcodes)",inline = False)

@@ -36,8 +36,10 @@ class Utility(commands.Cog):
                 self.active[str(guild["_id"])] = settings.get("bumpchannel")
             if settings.get("afkchannels",None):
                 self.ignore[str(guild["_id"])] = settings.get("afkchannels")
-            if settings.get("ar",None):
-                self.ar[str(guild["_id"])] = data.get("ar")
+            
+            auto = methods.query(guild,["utility","ar"]) or {}
+            if auto:
+                self.ar[str(guild["_id"])] = auto
 
             afk = methods.query(guild,["utility","afk"])
             if afk:
@@ -100,7 +102,7 @@ class Utility(commands.Cog):
                     await message.channel.set_permissions(message.guild.default_role, overwrite=overwrite)
                     raw = self.client.db.guild_data.find_one({"_id":message.guild.id},{"settings.utility.bping":1})
                     ping = methods.query(data = raw, search = ["settings","utility","bping"])
-                    embed = discord.Embed(description = f"It has been 2 hours since the last successful bump, could someone run `/bump`?",color = discord.Color.random())
+                    embed = discord.Embed(description = f"It has been 2 hours since the last successful bump, could someone run </bump:947088344167366698>?",color = discord.Color.random())
                     embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
                     if ping:
                         await message.channel.send(f"<@&{ping}>",embed = embed)
@@ -220,7 +222,7 @@ class Utility(commands.Cog):
     @commands.hybrid_group(extras = {"id": "404"},name = "afk")
     async def afkbase(self, ctx: commands.Context) -> None:
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help afk` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `afk` to get a list of commands.")
     
     @afkbase.command(extras = {"id": "405"},name = "set",help = "Set your server afk to let other people know you aren't there!")
     @app_commands.describe(message = "The message to be displayed if someone mentions you.")
@@ -272,7 +274,7 @@ class Utility(commands.Cog):
     @commands.hybrid_group(extras = {"id": "407"},name = "time")
     async def time(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help time` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `time` to get a list of commands.")
     
     @time.command(extras = {"id": "408"},name = "set",help = "Set up your timezone in the bot.")
     @app_commands.describe(timezone = "Your timezone in tz database format.")
@@ -290,7 +292,7 @@ class Utility(commands.Cog):
         timezone = methods.query(data = raw,search = ["utility","timezone"])
         
         if not timezone:
-            raise errors.PreRequisiteError(message = "Your timezone is not setup! Use `/time set` first to get started.")
+            raise errors.PreRequisiteError(message = "Your timezone is not setup! Use </time set:1010989269122297869> first to get started.")
 
         utc_now = pytz.utc.localize(datetime.datetime.utcnow())
         there_now = utc_now.astimezone(pytz.timezone(timezone))
@@ -303,7 +305,7 @@ class Utility(commands.Cog):
         timezone = methods.query(data = raw,search = ["utility","timezone"])
         
         if not timezone:
-           raise errors.PreRequisiteError(message = f"**{member}'s** timezone is not setup! Tell them to use `/time set` first to get started.")
+           raise errors.PreRequisiteError(message = f"**{member}'s** timezone is not setup! Tell them to use </time set:1010989269122297869> first to get started.")
 
         utc_now = pytz.utc.localize(datetime.datetime.utcnow())
         there_now = utc_now.astimezone(pytz.timezone(timezone))
@@ -312,7 +314,7 @@ class Utility(commands.Cog):
     @commands.hybrid_group(extras = {"id": "411"},name = "react",help = "Manage auto reactions for your server.")
     async def react(self, ctx: commands.Context) -> None:
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message =  "You need to specify a subcommand!\nUse `/help react` to get a list of commands.")
+            raise errors.ParsingError(message =  "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `react` to get a list of commands.")
     
     @react.command(extras = {"id": "412"},name = "add",help = "Add an auto reaction to a word or phrase!")
     @app_commands.describe(word = "The word to be reacted to.")

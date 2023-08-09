@@ -36,7 +36,7 @@ class ModTracking(commands.Cog):
     @modtrack_role_check()
     async def modtracking(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help modtracking` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `modtracking` to get a list of commands.")
     
     @modtracking.command(extras = {"id": "81"},help = "Log an action that you have completed.")
     @modtrack_role_check()

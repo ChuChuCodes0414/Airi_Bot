@@ -19,7 +19,7 @@ class PrivateChannels(commands.Cog):
     @commands.hybrid_group(extras = {"id": "90"},aliases = ['pc'],help = "The command group to manage private channels.")
     async def privatechannels(self,ctx):
         if ctx.invoked_subcommand is None:
-            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse `/help privatechannels` to get a list of commands.")
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `privatechannels` to get a list of commands.")
     
     @privatechannels.command(extras = {"id": "91"},aliases = ['ac'],help = "Add a member to the current channel.")
     @app_commands.describe(member = "The member to add to the channel.")
@@ -32,11 +32,11 @@ class PrivateChannels(commands.Cog):
         data = methods.query(data = raw,search = ["privatechannels",str(ctx.channel.id)])
 
         if not data:
-            raise errors.PreRequisiteError(message = "There is not a channel setup here!\nUse `/privatechannels set` to get started.")
+            raise errors.PreRequisiteError(message = "There is not a channel setup here!\nUse </privatechannels set:1103474987416956988> to get started.")
         if member.id in data:
-            raise errors.PreRequisiteError(message = f"**{member}** is already added to this channel!\nTo fix overrides for this member, run `/privatechannels fix`.")
+            raise errors.PreRequisiteError(message = f"**{member}** is already added to this channel!\nTo fix overrides for this member, run </privatechannels fix:1103474987416956988>.")
         if len(data) >= int(data[0]) + 1:
-            raise errors.PreRequisiteError(message = f"This channel is at its limit of `{data[0]}`!\nUse `/privatechannels changelimit` to change the member limit.")
+            raise errors.PreRequisiteError(message = f"This channel is at its limit of `{data[0]}`!\nUse </privatechannels changelimit:1103474987416956988> to change the member limit.")
 
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$addToSet":{f"privatechannels.{ctx.channel.id}":member.id}})
         overwrite = ctx.channel.overwrites_for(member)
@@ -55,7 +55,7 @@ class PrivateChannels(commands.Cog):
         data = methods.query(data = raw,search = ["privatechannels",str(ctx.channel.id)])
 
         if not data:
-            raise errors.PreRequisiteError(message = "There is not a channel setup here!\nUse `/privatechannels set` to get started.")
+            raise errors.PreRequisiteError(message = "There is not a channel setup here!\nUse </privatechannels set:1103474987416956988> to get started.")
         if user.id not in data:
             raise errors.PreRequisiteError(message = f"**{user}** is not in this channel!")
         if user.id == data[1]:
@@ -127,7 +127,7 @@ class PrivateChannels(commands.Cog):
         data = methods.query(data = raw,search = ["privatechannels",str(ctx.channel.id)])
 
         if not data:
-            raise errors.PreRequisiteError(message = f"There is not a channel setup in {channel.mention}!\nUse `/privatechannels set` to get started.")
+            raise errors.PreRequisiteError(message = f"There is not a channel setup in {channel.mention}!\nUse </privatechannels set:1103474987416956988> to get started.")
 
         limit,owner,members = data[0],data[1],data[1:]
 
@@ -154,7 +154,7 @@ class PrivateChannels(commands.Cog):
         data = methods.query(data = raw,search = ["privatechannels",str(ctx.channel.id)])
 
         if not data:
-            raise errors.PreRequisiteError(message = f"There is not a channel setup in {channel.mention}!\nUse `/privatechannels set` to get started.")
+            raise errors.PreRequisiteError(message = f"There is not a channel setup in {channel.mention}!\nUse </privatechannels set:1103474987416956988> to get started.")
 
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{f"privatechannels.{channel.id}.0":limit}})
         embed = discord.Embed(description = f'<a:PB_greentick:865758752379240448> Successfully changed limit of {channel.mention} to {limit}.',color = discord.Color.green())
@@ -171,7 +171,7 @@ class PrivateChannels(commands.Cog):
         data = methods.query(data = raw,search = ["privatechannels",str(ctx.channel.id)])
 
         if not data:
-            raise errors.PreRequisiteError(message = f"There is not a channel setup in {channel.mention}!\nUse `/privatechannels set` to get started.")
+            raise errors.PreRequisiteError(message = f"There is not a channel setup in {channel.mention}!\nUse </privatechannels set:1103474987416956988> to get started.")
         if data[1] == owner.id:
             raise errors.PreRequisiteError(message = f"**{owner}** is already the owner of this channel!")
 
@@ -203,7 +203,7 @@ class PrivateChannels(commands.Cog):
         data = methods.query(data = raw,search = ["privatechannels",str(ctx.channel.id)])
 
         if data:
-            raise errors.PreRequisiteError(message = f"{channel.mention} is already setup! Use `/privatechannels channelinfo` for more information.")
+            raise errors.PreRequisiteError(message = f"{channel.mention} is already setup! Use </privatechannels info:1103474987416956988> for more information.")
 
         self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$set":{f"privatechannels.{channel.id}":[limit,owner.id]}})
         overwrite = channel.overwrites_for(owner)

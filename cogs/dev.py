@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands, tasks
 import datetime
 from utils import methods, errors
+from characterai import PyAsyncCAI
+import os
 
 class Dev(commands.Cog):
     def __init__(self,client):
@@ -11,10 +13,31 @@ class Dev(commands.Cog):
         self.users = {}
         self.guilds = {}
         self.post_recap.start()
+
+        '''
+        self.caiclient = None
+        self.chat = None
+        self.tgt = None
+        '''
     
     @commands.Cog.listener()
     async def on_ready(self):
         print("Dev Category Loaded")
+
+    '''
+    async def cog_load(self):
+
+        self.caiclient = PyAsyncCAI(os.getenv("cai_token"))
+        await self.caiclient.start()
+        self.chat = await self.caiclient.chat.get_chat("HggCsEH_Th4vJEwUVZdTSO_ZiA9byuCavP_PFMHQ9xY")
+
+        participants = self.chat['participants']
+
+        if not participants[0]['is_human']:
+            self.tgt = participants[0]['user']['username']
+        else:
+            self.tgt = participants[1]['user']['username']
+    '''
     
     @tasks.loop(hours=24,reconnect = True)
     async def post_recap(self):
@@ -77,6 +100,17 @@ class Dev(commands.Cog):
                 embed = discord.Embed(title="Hello!",description=f"The prefix in this server is: `{prefix}`\nAll commands work on slash too!", color=discord.Color.random())
                 embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
                 await message.reply(embed = embed)
+            '''
+            elif message.content.startswith(self.client.user.mention) and len(message.content.split()) > 1:
+                raw = self.client.db.guild_data.find_one({"_id":message.guild.id},{"caibeta":1}) or {}
+                if not methods.query(data = raw,search = ["caibeta"]):
+                    return await message.reply(embed = discord.Embed(description = "This server does not have the character beta!",color = discord.Color.red()))
+                async with message.channel.typing():
+                    data = await self.caiclient.chat.send_message(self.chat['external_id'], self.tgt, " ".join(message.content.split()[1:]))
+                    #name = data['src_char']['participant']['name']
+                    text = data['replies'][0]['text']
+                    await message.reply(text,allowed_mentions = discord.AllowedMentions(everyone = False,roles = False))
+            '''
 
     @commands.Cog.listener()
     async def on_command_completion(self,ctx):
@@ -126,6 +160,18 @@ class Dev(commands.Cog):
         embed.timestamp = datetime.datetime.now()
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await channel.send(embed = embed)
+
+    @commands.command(hidden = True)
+    @commands.is_owner()
+    async def authorize(self,ctx,parameter:str,guild:discord.Guild):
+        self.client.db.guild_data.update_one({"_id":guild.id},{"$set":{parameter:True}})
+        await ctx.reply(embed = discord.Embed(description = f"Authorized `{parameter}` for guild `{guild.id}`",color = discord.Color.green()))
+
+    @commands.command(hidden = True)
+    @commands.is_owner()
+    async def unauthorize(self,ctx,parameter:str,guild:discord.Guild):
+        self.client.db.guild_data.update_one({"_id":guild.id},{"$unset":{parameter:""}})
+        await ctx.reply(embed = discord.Embed(description = f"Unauthorized `{parameter}` for guild `{guild.id}`",color = discord.Color.green()))
 
     @commands.command(hidden = True)
     @commands.is_owner()

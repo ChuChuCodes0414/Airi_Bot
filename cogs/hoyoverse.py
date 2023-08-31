@@ -82,7 +82,6 @@ class Hoyoverse(commands.Cog):
                 print(f"Failed to solve Geetest triggered for Genshin: {id}: {e}")
                 return False, "- A Geetest Captcha was triggered while trying to claim your Genshin daily rewards, and the bot could not solve it! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=e202102251931481)\n"
         except genshin.InvalidCookies as e:
-            error += 1
             print(f"Invalid cookies triggered for Genshin: {id}")
             self.client.db.user_data.update_one({"_id":int(id)},{"$unset":{"hoyoverse.settings.autoclaim":""}})
             return False, "- Your cookies are invalid, and thus your Genshin daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
@@ -98,26 +97,43 @@ class Hoyoverse(commands.Cog):
         captchas,captchaf = 0,0
         for account in accounts:
             hoyosettings = account.get("hoyoverse",{}).get("settings",{})
-            if "ltuid" in hoyosettings and "ltoken" in hoyosettings:
+            client = None
+            if "ltuid2" in hoyosettings and "ltoken2" in hoyosettings:
+                ltuid2,ltoken2 = hoyosettings['ltuid2'], hoyosettings['ltoken2']
+                ltuid2 = rsa.decrypt(binascii.unhexlify(ltuid2),self.private).decode('utf8')
+                ltoken2 = rsa.decrypt(binascii.unhexlify(ltoken2),self.private).decode('utf8')
+                client = genshin.Client({"ltuid_v2": ltuid2 ,"ltoken_v2": ltoken2})
+            elif "ltuid" in hoyosettings and "ltoken" in hoyosettings:
                 ltuid,ltoken = hoyosettings['ltuid'], hoyosettings['ltoken']
                 ltuid = rsa.decrypt(binascii.unhexlify(ltuid),self.private).decode('utf8')
                 ltoken = rsa.decrypt(binascii.unhexlify(ltoken),self.private).decode('utf8')
                 client = genshin.Client({'ltuid':ltuid,'ltoken':ltoken})
+            if client:
                 emessage = ""
                 if hoyosettings.get("autoclaim"):
-                    status,message = await self.claim_genshin_daily(client,account['_id'])
-                    if status:
-                        success += 1
-                        if message: captchas += 1
-                    else:
-                        captchaf += 1
-                        emessage += message
+                    if hoyosettings.get("gretry"):
                         status,message = await self.claim_genshin_daily(client,account['_id'])
                         if status:
                             success += 1
                             if message: captchas += 1
                         else:
                             captchaf += 1
+                            status,message = await self.claim_genshin_daily(client,account['_id'])
+                            if status:
+                                success += 1
+                                if message: captchas += 1
+                            else:
+                                captchaf += 1
+                                emessage += message
+                                error += 1
+                    else:
+                        status,message = await self.claim_genshin_daily(client,account['_id'])
+                        if status:
+                            success += 1
+                            if message: captchas += 1
+                        else:
+                            if message.startswith("- A Geetest Captcha"):
+                                captchaf += 1
                             emessage += message
                             error += 1
                 if hoyosettings.get("hautoclaim"):
@@ -168,6 +184,8 @@ class Hoyoverse(commands.Cog):
                         dmsuccess += 1
                     except:
                         dmerror += 1
+            else:
+                print(f"No client found for {account['_id']}")
         embed = discord.Embed(title = "Hoyoverse Daily Rewards Claimed!",description = "Today's Hoyoverse auto claim stats are as follows.",color = discord.Color.random())
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
@@ -241,6 +259,11 @@ class Hoyoverse(commands.Cog):
 
     async def get_cookies(self,ctx,user):
         raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings":1})
+        ltuid2,ltoken2 = methods.query(data = raw, search = ["hoyoverse","settings","ltuid2"]),methods.query(data = raw, search = ["hoyoverse","settings","ltoken2"])
+        if ltuid2 and ltoken2:
+            ltuid2 = rsa.decrypt(binascii.unhexlify(ltuid2),self.private).decode('utf8')
+            ltoken2 = rsa.decrypt(binascii.unhexlify(ltoken2),self.private).decode('utf8')
+            return {"ltuid_v2": ltuid2 ,"ltoken_v2": ltoken2}
         ltuid,ltoken = methods.query(data = raw, search = ["hoyoverse","settings","ltuid"]),methods.query(data = raw, search = ["hoyoverse","settings","ltoken"])
         if ltoken and ltuid:
             ltuid = rsa.decrypt(binascii.unhexlify(ltuid),self.private).decode('utf8')
@@ -311,8 +334,8 @@ class Hoyoverse(commands.Cog):
     
     @hoyolab.command(extras = {"id": "501"}, help = "Link your account!")
     async def link(self,ctx):
-        embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at </hoyolab information:999438437906124835>.",color = discord.Color.random())
-        embed.add_field(name = "Getting Cookies",value = 'From the browser: \n1. Go to [hoyolab.com](https://hoyolab.com).\n2. Login to your account.\n3. In your browser search bar, replace the hoyolab URL with `javascript:`, then paste the code.\n4. Press `Click here to copy!`, and then press `Enter Information` on the bot menu to paste your information in.',inline = False)
+        embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at </hoyolab information:999438437906124835>.\n\n⚠ There may currently be a problem with some accounts not being able to link through this method. If this method shows your cookies are invalid, and you have logged out and logged in, then, at this time, your account cannot be linked. Please follow the support server at </invite:1023762091603132498> for updates!",color = discord.Color.random())
+        embed.add_field(name = "Getting Cookies",value = 'From the browser: \n1. Go to [hoyolab.com](https://hoyolab.com).\n2. Login to your account.\n3. In your browser search bar, replace the hoyolab URL with `javascript:`, then paste the script. It is preferred that you use the `V2` script if the `V1` script does not work properly.\n4. Press `Click here to copy!`, and then press `Enter Information` on the bot menu to paste your information in.',inline = False)
         embed.set_image(url = "https://cdn.discordapp.com/attachments/870127759526101032/1024473968641593414/howtocookie.gif")
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         view = LinkView(ctx,self.public)
@@ -343,7 +366,7 @@ class Hoyoverse(commands.Cog):
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
     
-    @hoyolab.command(extras = {"id": "546"}, help = "Refresh your cookie token, in the event it has expired.")
+    @hoyolab.command(enabled = False,extras = {"id": "546"}, help = "Refresh your cookie token, in the event it has expired.")
     async def refresh(self,ctx):
         data = await self.get_redeem_cookies(ctx,ctx.author) 
         if not data: return
@@ -492,7 +515,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(extras = {"id": "508"},help = "Redeem a code for yourself or a friend.")
+    @genshin.command(enabled = False,extras = {"id": "508"},help = "Redeem a code for yourself or a friend.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def redeem(self,ctx,code:str,member:discord.Member = None):
@@ -1128,7 +1151,7 @@ class Hoyoverse(commands.Cog):
         async with ctx.typing():
             client = genshin.Client(data)
             reward = await client.claim_daily_reward(game = genshin.Game.HONKAI)
-            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with `</hoyolab settings:999438437906124835>`",color = discord.Color.green())
+            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with </hoyolab settings:999438437906124835>",color = discord.Color.green())
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
@@ -1277,7 +1300,7 @@ class Hoyoverse(commands.Cog):
         async with ctx.typing():
             client = genshin.Client(data)
             reward = await client.claim_daily_reward(game = genshin.Game.STARRAIL)
-            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox!",color = discord.Color.green())
+            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with </hoyolab settings:999438437906124835>",color = discord.Color.green())
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
             embed.set_thumbnail(url = reward.icon)
         await ctx.reply(embed = embed)
@@ -1301,7 +1324,7 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @honkaistarrail.command(extras = {"id": "538"},name = "redeem",help = "Redeem a code for yourself or a friend.")
+    @honkaistarrail.command(enabled = False,extras = {"id": "538"},name = "redeem",help = "Redeem a code for yourself or a friend.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def honkaistarredeem(self,ctx,code:str,member:discord.Member = None):
@@ -1445,6 +1468,15 @@ class Hoyoverse(commands.Cog):
                 trailblazeunix = int(trailblazefull.replace(tzinfo = datetime.timezone.utc).timestamp())
                 embed.add_field(name = "<:trailblazepower:1116016414067785800> Trailblaze Power",value = f"{data.current_stamina}/{data.max_stamina}\nFull Trailblaze Power <t:{trailblazeunix}:R>",inline = False)
 
+            if data.is_reserve_stamina_full:
+                embed.add_field(name = "<:hsrreserve:1146643026878398637> Reserved Trailblaze Power",value = f"{data.current_reserve_stamina}/2400\nReserve Stamina Currently Full!") 
+            else:
+                embed.add_field(name = "<:hsrreserve:1146643026878398637> Reserved Trailblaze Power",value = f"{data.current_reserve_stamina}/2400") 
+
+            embed.add_field(name = "<:hsrdaily:1146642085366206524> Daily Training",value = f"{data.current_train_score}/{data.max_train_score} points",inline = False)
+            embed.add_field(name = "<:hsrsu:1146640649895022744> Simulated Universe",value = f"{data.current_rogue_score}/{data.max_rogue_score} weekly points",inline = False)
+            embed.add_field(name = "<:hsrweekly:1146642228240986112> Echo of War",value = f"{data.remaining_weekly_discounts}/{data.max_weekly_discounts} remaining",inline = False)
+
             if data.expeditions:
                 expeditionres = ""
                 for expedition in data.expeditions:
@@ -1487,7 +1519,8 @@ class Hoyoverse(commands.Cog):
         view.message = message
 
     '''
-        @honkaistarrail.command(extras = {"id":"550"},name = "diary")
+    
+    @honkaistarrail.command(extras = {"id":"550"},name = "diary")
     async def hsdiary(self,ctx,member:discord.Member = None):
         member = member or ctx.author
         if not await self.privacy_check(ctx,member):
@@ -1501,6 +1534,7 @@ class Hoyoverse(commands.Cog):
             print(diary)
         await ctx.reply("done!")
     '''
+
     
     @honkaistarrail.command(extras = {"id": "543"},name = "authkey",help = "Set Honkai: Star Rail authkey in the bot.")
     async def hsauthkey(self,ctx):
@@ -1616,6 +1650,11 @@ class SettingsView(discord.ui.View):
     
     async def generate_embed(self,data):
         data = data or {}
+        cookies = "Setup: "
+        if methods.query(data = data,search = ["hoyoverse","settings","ltuid"]):
+            cookies += "V1 "
+        if methods.query(data = data,search = ["hoyoverse","settings","ltuid2"]):
+            cookies += "V2 "
         uid = methods.query(data = data,search = ["hoyoverse","settings","uid"])
         huid = methods.query(data = data,search = ["hoyoverse","settings","huid"])
         hsuid = methods.query(data = data,search = ["hoyoverse","settings","hsuid"])
@@ -1627,6 +1666,7 @@ class SettingsView(discord.ui.View):
         hsautoredeem = methods.query(data = data,search = ["hoyoverse","settings","hsautoredeem"])
         hsautoclaim = methods.query(data = data,search = ["hoyoverse","settings","hsautoclaim"])
         embed = discord.Embed(title = "Hoyoverse User Settings",description = "To setup cookies, use </hoyolab link:999438437906124835>\nTo setup authkey, use </genshin authkey:999438437906124836> and/or </honkaistarrail authkey:1101694558842126426>",color = discord.Color.random())
+        embed.add_field(name = "Cookies Type",value = cookies)
         embed.add_field(name = "Genshin UID",value = str(uid))
         embed.add_field(name = "Honkai Impact 3rd UID",value = str(huid))
         embed.add_field(name = "Honkai: Star Rail UID",value = str(hsuid))
@@ -1701,8 +1741,8 @@ class EnableSelect(discord.ui.Select):
         super().__init__(placeholder = "Enable Auto Features",options = options)
     
     async def callback(self,interaction):
-        if not methods.query(data = interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings.ltuid":1}) or {},search = ["hoyoverse","settings","ltuid"]):
-            return await interaction.response.send_message(embed = discord.Embed(description = "You need to setup your cookie data first!\n`/hoyolab link` to get started.",color = discord.Color.red()))
+        if not methods.query(data = interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings.ltuid":1}) or {},search = ["hoyoverse","settings","ltuid"]) and not methods.query(data = interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings.ltuid2":1}) or {},search = ["hoyoverse","settings","ltuid2"]):
+            return await interaction.response.send_message(embed = discord.Embed(description = "You need to setup your cookie data first!\n</hoyolab link:999438437906124835> to get started.",color = discord.Color.red()),ephemeral = True)
         interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{self.values[0]:True}},upsert = True)
         embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
         await interaction.response.edit_message(embed = embed)
@@ -2766,10 +2806,14 @@ class LinkView(ui.View):
             child.disabled = True
         await self.message.edit(view = self)
     
-    @discord.ui.button(label = "1. Get Script",style = discord.ButtonStyle.blurple)
-    async def getscript(self,interaction,button):
+    @discord.ui.button(label = "1. Get Script V1",style = discord.ButtonStyle.blurple)
+    async def getscriptv1(self,interaction,button):
         await interaction.response.send_message('```check = document.cookie.includes(\'account_id\') && document.cookie.includes(\'cookie_token\') || alert(\'Cookie invalid or is outdated, please logout then login again!\'); cookie=document.cookie.match(/(lt(oken|uid)|cookie_token)=(.*?);/gm).join(" "); check && document.write(cookie + `<br><button onclick="navigator.clipboard.writeText(\'${cookie}\')">Click here to copy!</button>`)```',ephemeral = True)
     
+    @discord.ui.button(label = "1. Get Script V2", style = discord.ButtonStyle.blurple)
+    async def getscriptv2(self,interaction,button):
+        await interaction.response.send_message('```check = document.cookie.includes(\'account_id\')|| alert(\'Cookie invalid or is outdated, please logout then login again!\'); cookie=document.cookie.match(/(lt(oken|uid)_v2|cookie_token)=(.*?);/gm).join(" "); check && document.write(cookie + `<br><button onclick="navigator.clipboard.writeText(\'${cookie}\')">Click here to copy!</button>`)```',ephemeral = True)
+
     @discord.ui.button(label = "2. Enter Information",style = discord.ButtonStyle.blurple)
     async def enterinformation(self,interaction,button):
         await interaction.response.send_modal(CollectCookies(self.key))
@@ -2785,29 +2829,37 @@ class CollectCookies(discord.ui.Modal,title = "Cookie Request"):
         splitstr = self.cookies.value.split(";")
         if len(splitstr) < 3:
             return await interaction.response.send_message(embed = discord.Embed(description = "I could not parse your data! Please try again.",color = discord.Color.random()),ephemeral = True)
-        ltuid, ltoken, cookie_token = None,None,None
+        ltuid, ltoken,ltuid2,ltoken2 = None,None,None,None
         for item in splitstr[:-1]:
-            splitstr2 = item.split("=")
-            identifier = splitstr2[0].strip(" ")
-            data = splitstr2[1].strip("; ")
+            index = item.index("=")
+            identifier = item[:index].strip()
+            data = item[index+1:].strip(";").strip()
             if identifier == "ltoken":
                 ltoken = data
             elif identifier == "ltuid":
                 ltuid = data
-            elif identifier == "cookie_token":
-                cookie_token = data
-        if not ltuid or not ltoken or not cookie_token:
+            elif identifier == "ltuid_v2":
+                ltuid2 = data
+            elif identifier == "ltoken_v2":
+                ltoken2 = data
+        if ltuid2 and ltoken2:
+            uid2utf8 = ltuid2.encode('utf8')
+            encodeduid2 = rsa.encrypt(uid2utf8,self.key)
+            token2utf8 = ltoken2.encode('utf8')
+            encodedtoken2 = rsa.encrypt(token2utf8,self.key)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltuid2":binascii.hexlify(encodeduid2).decode('utf8')}},upsert = True)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltoken2":binascii.hexlify(encodedtoken2).decode('utf8')}})
+        elif ltuid and ltoken:
+            uidutf8 = ltuid.encode('utf8')
+            encodeduid = rsa.encrypt(uidutf8,self.key)
+            tokenutf8 = ltoken.encode('utf8')
+            encodedtoken = rsa.encrypt(tokenutf8,self.key)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltuid":binascii.hexlify(encodeduid).decode('utf8')}},upsert = True)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltoken":binascii.hexlify(encodedtoken).decode('utf8')}})
+        else:
             return await interaction.response.send_message(embed = discord.Embed(description = "I could not parse your data! Please try again.",color = discord.Color.random()),ephemeral = True)
-        uidutf8 = ltuid.encode('utf8')
-        encodeduid = rsa.encrypt(uidutf8,self.key)
-        tokenutf8 = ltoken.encode('utf8')
-        encodedtoken = rsa.encrypt(tokenutf8,self.key)
-        cookieutf8 = cookie_token.encode('utf8')
-        encodedcookie = rsa.encrypt(cookieutf8,self.key)
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltuid":binascii.hexlify(encodeduid).decode('utf8')}},upsert = True)
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltoken":binascii.hexlify(encodedtoken).decode('utf8')}})
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.cookietoken":binascii.hexlify(encodedcookie).decode('utf8')}})
-        embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your cookies in the bot. You can now use any genshin command pertaining to yourself!\nSome commands require a UID. Set that up with `/hoyolab settings`.",color = discord.Color.green())
+        
+        embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your cookies in the bot. You can now use any genshin command pertaining to yourself!\nSome commands require a UID. Set that up with </hoyolab settings:999438437906124835>.",color = discord.Color.green())
         embed.set_footer(text = "You can relink your account with /hoyolab link, and edit settings with /hoyolab settings")
         await interaction.response.send_message(embed = embed,ephemeral = True)
     

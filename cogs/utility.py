@@ -377,6 +377,7 @@ class Utility(commands.Cog):
         self.ar[str(ctx.guild.id)][word].remove(emojitext)
         if len(self.ar[str(ctx.guild.id)][word]) == 0:
             self.ar[str(ctx.guild.id)].pop(word)
+            self.client.db.guild_data.update_one({"_id":ctx.guild.id},{"$unset":{f"utility.ar.{word}":""}})
         embed = discord.Embed(description = f"Removed an autoreaction for **{word}** as {emoji}!",color = discord.Color.green())
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)

@@ -6,6 +6,8 @@ This bot is technically the development bot for the public bot, Mafuyu Bot. All 
 + [discord.py](https://github.com/Rapptz/discord.py)
 + [genshin.py](https://github.com/thesadru/genshin.py)
 + [EnkaCard](https://github.com/DEViantUA/EnkaCard)
++ [googletrans](https://github.com/ssut/py-googletrans)
++ [langcodes](https://github.com/rspeer/langcodes)
 
 # Invite Links
 + [Support Server](https://discord.com/invite/9pmGDc8pqQ)

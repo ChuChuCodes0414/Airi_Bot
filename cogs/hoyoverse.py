@@ -190,7 +190,7 @@ class Hoyoverse(commands.Cog):
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
         embed.add_field(name = "<:honkaistarrailicon:1101673399996121178> Honkai: Star Rail Claims",value = f"Successful Claims: `{hssuccess}`\nFailed Claims: `{hserror}`")
-        embed.add_field(name = "<:geetestcringe:1138946483031379988> Geetest Triggers",value = f"Successful Solves: {captchas}\nFailed Solves: {captchaf}\nTotal Cost: ${(captchas+captchaf)*0.003} USD",inline = False)
+        #embed.add_field(name = "<:geetestcringe:1138946483031379988> Geetest Triggers",value = f"Successful Solves: {captchas}\nFailed Solves: {captchaf}\nTotal Cost: ${(captchas+captchaf)*0.003} USD",inline = False)
         embed.timestamp = datetime.datetime.utcnow()
         channel = self.client.get_channel(int(1002939673120870401))
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)

@@ -211,6 +211,10 @@ class ErrorHandling(commands.Cog):
         if isinstance(error,enkanetwork.exception.EnkaServerRateLimit):
             await self.send_error_embed(ctx,"The bot is hitting a rate limit at the moment! Please try again later.")
             return
+        
+        if isinstance(error,AttributeError) and ctx.command.name == "enka":
+            await self.send_error_embed(ctx,"The enka library has not been updated for a character in this user's showcase, and thus it will not work, and the dev is too lazy to fix it sorry.")
+            return
 
         if isinstance(error, commands.BotMissingPermissions):
             missing = [perm.replace('_', ' ').replace('guild', 'server').title() for perm in error.missing_perms]

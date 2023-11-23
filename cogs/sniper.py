@@ -57,12 +57,12 @@ class Sniper(commands.Cog):
             self.sniped_messages[message.channel.id].insert(0,[message,now])
         else:
             self.sniped_messages[message.channel.id] = [[message,now]]
-        max = self.settings[message.guild.id][0] or 50
+        max = self.settings.get(message.guild.id,[None])[0] or 50
         if max > 50:
             max = 50
         if len(self.sniped_messages[message.channel.id]) > max:
             self.sniped_messages[message.channel.id].pop(-1)
-        time = self.settings[message.guild.id][1] or 30
+        time = self.settings.get(message.guild.id,[0,None])[1] or 30
         await asyncio.sleep(time)
         try:
             self.sniped_messages[message.channel.id].remove([message,now])
@@ -76,12 +76,12 @@ class Sniper(commands.Cog):
             self.purged_messages[messages[0].channel.id].insert(0,[messages,now])
         else:
             self.purged_messages[messages[0].channel.id] = [[messages,now]]
-        max = self.settings[messages[0].guild.id][0] or 50
+        max = self.settings.get(messages[0].guild.id,[None])[0] or 50
         if max > 50:
             max = 50
         if len(self.purged_messages[messages[0].channel.id]) > max:
             self.purged_messages[messages[0].channel.id].pop(-1)
-        time = self.settings[messages[0].guild.id][1] or 30
+        time = self.settings.get(messages[0].guild.id,[0,None])[1] or 30
         await asyncio.sleep(time)
         try:
             self.purged_messages[messages[0].channel.id].remove([messages,now])
@@ -98,12 +98,12 @@ class Sniper(commands.Cog):
                 self.edited_messages[message_before.channel.id].insert(0,[message_before,message_after,now])
             else:
                 self.edited_messages[message_before.channel.id] = [[message_before,message_after,now]]
-            max = self.settings[message_before.guild.id][0] or 50
+            max = self.settings.get(message_before.guild.id,[None])[0] or 50
             if max > 50:
                 max = 50
             if len(self.edited_messages[message_before.channel.id]) > max:
                 self.edited_messages[message_before.channel.id].pop(-1)
-            time = self.settings[message_before.guild.id][1] or 30
+            time = self.settings.get(message_before.guild.id,[0,None])[1] or 30
             await asyncio.sleep(time)
             try:
                 self.edited_messages[message_before.channel.id].remove([message_before,message_after,now])
@@ -120,12 +120,12 @@ class Sniper(commands.Cog):
             self.removed_reactions[message.channel.id].insert(0,[message,user,reaction,now])
         else:
             self.removed_reactions[message.channel.id] = [[message,user,reaction,now]]
-        max = self.settings[message.guild.id][0] or 50
+        max = self.settings.get(message.guild.id,[None])[0] or 50
         if max > 50:
             max = 50
         if len(self.removed_reactions[message.channel.id]) > max:
             self.removed_reactions[message.channel.id].pop(-1)
-        time = self.settings[message.guild.id][1] or 30
+        time = self.settings.get(message.guild.id,[0,None])[1] or 30
         await asyncio.sleep(time)
         try:
             self.removed_reactions[message.channel.id].remove([message,user,reaction,now])
@@ -225,7 +225,7 @@ class Sniper(commands.Cog):
         data = self.removed_reactions[channel.id][index]
 
         emb = discord.Embed(title = f"Removed reaction {index+1} in #{channel.name}", description = f'**Message:** [Link to Message]({data[0].jump_url})\n**Reaction Removed:** {data[2].emoji}',color = discord.Color.random())
-        emb.set_author(name=f"Reationed removed by {data[1]}",icon_url=data[1].avatar)
+        emb.set_author(name=f"Reaction removed by {data[1]}",icon_url=data[1].avatar)
         emb.set_footer(text = f"Sniped by {ctx.message.author}")
         emb.timestamp = data[3]
         await ctx.reply(embed = emb)

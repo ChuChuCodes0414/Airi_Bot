@@ -334,8 +334,9 @@ class Hoyoverse(commands.Cog):
     
     @hoyolab.command(extras = {"id": "501"}, help = "Link your account!")
     async def link(self,ctx):
-        embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at </hoyolab information:999438437906124835>.\n\n⚠ There may currently be a problem with some accounts not being able to link through this method. If this method shows your cookies are invalid, and you have logged out and logged in, then, at this time, your account cannot be linked. Please follow the support server at </invite:1023762091603132498> for updates!",color = discord.Color.random())
+        embed = discord.Embed(title = "Hoyoverse Account Linking",description = "This is required to make most of the commands work! You can read more about this at </hoyolab information:999438437906124835>.\n\n⚠ If the script will only output your `ltuid` and not your `ltoken`, then your only option at the moment is manual input. Please read below for more information!",color = discord.Color.random())
         embed.add_field(name = "Getting Cookies",value = 'From the browser: \n1. Go to [hoyolab.com](https://hoyolab.com).\n2. Login to your account.\n3. In your browser search bar, replace the hoyolab URL with `javascript:`, then paste the script. It is preferred that you use the `V2` script if the `V1` script does not work properly.\n4. Press `Click here to copy!`, and then press `Enter Information` on the bot menu to paste your information in.',inline = False)
+        embed.add_field(name = "Manual Input", value = "The script above is likely not to work, due to certain limitations. If you know what you are doing, please choose option 3. If you have any questions, please join the support server found in </invite:1023762091603132498> and the developer can help you get setup.")
         embed.set_image(url = "https://cdn.discordapp.com/attachments/870127759526101032/1024473968641593414/howtocookie.gif")
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         view = LinkView(ctx,self.public)
@@ -2817,6 +2818,43 @@ class LinkView(ui.View):
     @discord.ui.button(label = "2. Enter Information",style = discord.ButtonStyle.blurple)
     async def enterinformation(self,interaction,button):
         await interaction.response.send_modal(CollectCookies(self.key))
+    
+    @discord.ui.button(label = "3. Manual Input",style = discord.ButtonStyle.blurple)
+    async def manualinput(self,interaction,button):
+        await interaction.response.send_modal(ManualCollectCookies(self.key))
+
+class ManualCollectCookies(discord.ui.Modal,title = "Manual Cookie Request"):
+    def __init__(self,key):
+        super().__init__()
+        self.key = key
+
+    ltuid = discord.ui.TextInput(label = "ltuid",placeholder="A short integer id number.",max_length = 300,required = False)
+    ltoken = discord.ui.TextInput(label = "ltoken",placeholder="A long string used for authentication.",max_length = 300,required = False)
+    ltuid2 = discord.ui.TextInput(label = "ltuid_v2",placeholder="A short integer id number.",max_length = 300,required = False)
+    ltoken2 = discord.ui.TextInput(label = "ltoken_v2",placeholder="A long string used for authentication.",max_length = 300,required = False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        ltuid, ltoken,ltuid2,ltoken2 = self.ltuid.value,self.ltoken.value,self.ltuid2.value,self.ltoken2.value
+        if ltuid2 and ltoken2:
+            uid2utf8 = ltuid2.encode('utf8')
+            encodeduid2 = rsa.encrypt(uid2utf8,self.key)
+            token2utf8 = ltoken2.encode('utf8')
+            encodedtoken2 = rsa.encrypt(token2utf8,self.key)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltuid2":binascii.hexlify(encodeduid2).decode('utf8')}},upsert = True)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltoken2":binascii.hexlify(encodedtoken2).decode('utf8')}})
+        elif ltuid and ltoken:
+            uidutf8 = ltuid.encode('utf8')
+            encodeduid = rsa.encrypt(uidutf8,self.key)
+            tokenutf8 = ltoken.encode('utf8')
+            encodedtoken = rsa.encrypt(tokenutf8,self.key)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltuid":binascii.hexlify(encodeduid).decode('utf8')}},upsert = True)
+            interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{"hoyoverse.settings.ltoken":binascii.hexlify(encodedtoken).decode('utf8')}})
+        else:
+            return await interaction.response.send_message(embed = discord.Embed(description = "You must input both an ltoken and ltui for either v1 or v2!",color = discord.Color.random()),ephemeral = True)
+        
+        embed = discord.Embed(title = "Authentication Data Set!",description = "I have setup your cookies in the bot. You can now use any genshin command pertaining to yourself!\nSome commands require a UID. Set that up with </hoyolab settings:999438437906124835>.",color = discord.Color.green())
+        embed.set_footer(text = "You can relink your account with /hoyolab link, and edit settings with /hoyolab settings")
+        await interaction.response.send_message(embed = embed,ephemeral = True)
 
 class CollectCookies(discord.ui.Modal,title = "Cookie Request"):
     def __init__(self,key):

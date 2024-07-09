@@ -7,7 +7,7 @@ import pytz
 import ast
 import operator as op
 import functools
-from utils import methods, errors
+from utils import methods, errors, classes
 
 class Utility(commands.Cog):
     def __init__(self,client):
@@ -131,7 +131,7 @@ class Utility(commands.Cog):
             if len(build) > 0:
                 embed.add_field(name = "Your most recent AFK mentions:",value = build)
                 embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
-                await message.reply(embed = embed)
+                await message.reply(embed = embed, view = classes.DeleteMessageView(message.author))
             else:
                 await message.reply(embed = embed, delete_after = 5)
         build = ""

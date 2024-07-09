@@ -69,8 +69,10 @@ class Channels(commands.Cog):
                 channel = ctx.guild.get_channel(channelid)
                 overwrite = channel.overwrites_for(role)
                 overwrite.send_messages = False
+                overwrite.send_messages_in_threads = False
                 await channel.set_permissions(role, overwrite=overwrite)
-                await channel.send(embed = embed)
+                if channel.type != discord.ChannelType.forum:
+                    await channel.send(embed = embed)
                 await asyncio.sleep(0.3)
             except:
                 invalidchannels.append(channelid)
@@ -135,8 +137,10 @@ class Channels(commands.Cog):
                 channel = ctx.guild.get_channel(channelid)
                 overwrite = channel.overwrites_for(role)
                 overwrite.send_messages = None
+                overwrite.send_messages_in_threads = None
                 await channel.set_permissions(role, overwrite=overwrite)
-                await channel.send(embed = embed)
+                if channel.type != discord.ChannelType.forum:
+                    await channel.send(embed = embed)
                 await asyncio.sleep(0.3)
             except:
                 invalidchannels.append(channelid)
@@ -201,7 +205,8 @@ class Channels(commands.Cog):
                 overwrite = channel.overwrites_for(role)
                 overwrite.view_channel = False
                 await channel.set_permissions(role, overwrite=overwrite)
-                await channel.send(embed = embed)
+                if channel.type != discord.ChannelType.forum:
+                    await channel.send(embed = embed)
                 await asyncio.sleep(0.5)
             except:
                 invalidchannels.append(channelid)
@@ -266,7 +271,8 @@ class Channels(commands.Cog):
                 overwrite = channel.overwrites_for(role)
                 overwrite.view_channel = None
                 await channel.set_permissions(role, overwrite=overwrite)
-                await channel.send(embed = embed)
+                if channel.type != discord.ChannelType.forum:
+                    await channel.send(embed = embed)
                 await asyncio.sleep(0.5)
             except:
                 invalidchannels.append(channelid)

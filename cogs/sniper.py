@@ -147,11 +147,18 @@ class Sniper(commands.Cog):
         
         message = self.sniped_messages[channel.id][index][0]
         time = self.sniped_messages[channel.id][index][1]
+        referenced = None
+        if message.reference:
+            try:
+                referenced = await channel.fetch_message(message.reference.message_id)
+            except:
+                pass
 
         if message.embeds:
             sniped_embed = message.embeds[0]
             await ctx.reply(embed = sniped_embed)
             emb = discord.Embed(title = f"Deleted message {index+1} in #{channel.name}", description = "Embed sniped, shown above.",color = discord.Color.random())
+            if referenced: emb.add_field(name = "Referenced Message",value = f"**{referenced.author}**: [{referenced.content or 'No message content.'}]({referenced.jump_url})")
             emb.set_author(name=f"Sent by {message.author}",icon_url=message.author.avatar)
             emb.set_footer(text = f"Sniped by {ctx.message.author}")
             emb.timestamp = time
@@ -160,6 +167,7 @@ class Sniper(commands.Cog):
             description = message.content
 
         emb = discord.Embed(title = f"Deleted message {index+1} in #{channel.name}", description = description,color = discord.Color.random())
+        if referenced: emb.add_field(name = "Referenced Message",value = f"**{referenced.author}**: [{referenced.content or 'No message content.'}]({referenced.jump_url})")
         emb.set_author(name=f"Sent by {message.author}",icon_url=message.author.avatar)
         emb.set_footer(text = f"Sniped by {ctx.message.author}")
         emb.timestamp = time

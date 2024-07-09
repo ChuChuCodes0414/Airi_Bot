@@ -193,6 +193,75 @@ class Mod(commands.Cog):
             await ctx.reply(embed = discord.Embed(description = f"Unbanned **{user}**",color = discord.Color.green()))
         except:
             raise errors.PreRequisiteError(message = "That user is not currently banned.")
+    
+    @commands.hybrid_command(extras = {"id": "700"},aliases = ['r'],help = "Ban a member from the server. Also deletes messages from past day.")
+    @commands.has_permissions(ban_members = True)
+    @app_commands.describe(member = "The member or user that should be banned from the server.",reason = "Why you are banning this member or user from the server.")
+    async def raid(self,ctx,member,*,reason = None):
+        try:
+            member = await commands.converter.MemberConverter().convert(ctx,member)
+            failed = False
+        except:
+            failed = True
+            member = member
+        if failed:
+            try:
+                user = await self.client.fetch_user(int(member))
+            except:
+                raise errors.ParsingError(message = "I could not find a user with that id! Try again with an actual id.")
+            if user:
+                await ctx.guild.ban(user,reason = reason,delete_message_days=1)
+                return await ctx.reply(embed = discord.Embed(description = f'**{user.name}#{user.discriminator}** was banned from the server.\nMember Originally in Server? <:redtick:930931511685955604>',color = discord.Color.green()))
+        bot_top = ctx.guild.get_member(self.client.user.id)
+        bot_top_ob = bot_top.top_role
+        if bot_top_ob <= member.top_role:
+            raise errors.PreRequisiteError(message = f"That member has a role position `({member.top_role.position})` that is higher or equal to my top role `({bot_top_ob.position})`.")
+        if member.top_role >= ctx.author.top_role:
+            raise errors.PreRequisiteError(message = "You cannot ban people who have a higher role than you.")
+        else:
+            res = ""
+            try:
+                dm = member.dm_channel
+                if dm == None:
+                    dm = await member.create_dm()
+                await dm.send(f'**You were banned from {ctx.guild} for the following reason:**\n{reason}')
+                res += "Member DMed? <:greentick:930931553478008865>"
+            except:
+                res += "Member DMed? <:redtick:930931511685955604>"
+            await member.ban(reason=reason,delete_message_days=1)
+            embed = discord.Embed(description = f"**{member}** was banned from the server\n{res}",color = discord.Color.green())
+            await ctx.reply(embed = embed)
+    
+    @commands.hybrid_command(extras = {"id": "78"},aliases = ['mr'],help = "Mass ban members from the server, with deletes of messages for a day.")
+    @commands.has_permissions(ban_members = True) 
+    @app_commands.describe(members = "A list of members or IDS, separated by spaces.")
+    async def massraid(self,ctx,*,members):
+        guild = ctx.guild
+        members = members.split()
+        count = 0
+        async with ctx.typing():
+            for member in members:
+                if str(member).isnumeric():
+                    id = int(member)
+                    member = guild.get_member(int(member))
+                else:
+                    member = await commands.converter.MemberConverter().convert(ctx,member)
+
+                if not member:
+                    user = await self.client.fetch_user(int(id))
+                    await ctx.guild.ban(user,reason = f"Massban Taken by **{ctx.author}**",delete_message_days=1)
+                    count += 1
+                else:
+                    if member.top_role >= ctx.author.top_role:
+                        continue
+                    await member.ban(reason=f"Massban Taken by **{ctx.author}**",delete_message_days=1)
+                    count += 1
+            await asyncio.sleep(1)
+
+        try:
+            await ctx.reply(embed = discord.Embed(description = f"Banned **{count}** members",color = discord.Color.green()))
+        except:
+            await ctx.send(embed = discord.Embed(description = f"Banned **{count}** members",color = discord.Color.green()))
 
 async def setup(client):
     await client.add_cog(Mod(client))

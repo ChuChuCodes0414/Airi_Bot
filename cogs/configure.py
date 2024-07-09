@@ -339,9 +339,9 @@ class SettingsSelect(ui.Select):
     def __init__(self):
         options = [
             discord.SelectOption(label = "Bot Settings", description = "Change the bot prefix.",value = -1),
-            discord.SelectOption(label = "Boost Tracking", description = "Toggle boost tracking and setup logging/announcing.",value = 0),
+            #discord.SelectOption(label = "Boost Tracking", description = "Toggle boost tracking and setup logging/announcing.",value = 0),
             discord.SelectOption(label = "Event Tracking", description = "Setup event roles and logging.",value = 1),
-            discord.SelectOption(label = "Invite Tracking", description = "Setup where the invite logger goes.",value = 2),
+            #discord.SelectOption(label = "Invite Tracking", description = "Setup where the invite logger goes.",value = 2),
             discord.SelectOption(label = "Mod Tracking", description = "Setup mod tracking roles and logging.",value = 3),
             discord.SelectOption(label = "Sniper", description = "Setup message sniping lookback and cooldown.",value = 4),
             discord.SelectOption(label = "Channels", description = "Setup lockdown role and channels.",value = 5),
@@ -749,8 +749,8 @@ class Channels():
     async def pull_items(self):
         return [
             [Role_Select("Lockdown Role","settings.channels.lrole",self)],
-            [Add_Channel_Select("Add Lockdown Channel","settings.channels.lchannels",self,channel_types = [discord.ChannelType.text])],
-            [Remove_Channel_Select("Remove Lockdown Channel","settings.channels.lchannels",self,channel_types = [discord.ChannelType.text])],
+            [Add_Channel_Select("Add Lockdown Channel","settings.channels.lchannels",self,channel_types = [discord.ChannelType.text,discord.ChannelType.forum,discord.ChannelType.voice,discord.ChannelType.stage_voice])],
+            [Remove_Channel_Select("Remove Lockdown Channel","settings.channels.lchannels",self,channel_types = [discord.ChannelType.text,discord.ChannelType.forum,discord.ChannelType.voice,discord.ChannelType.stage_voice])],
             [View_Channel_List(key = "settings.channels.lchannels",label = "View Lockdown Channels"),Remove_Button("settings.channels.lrole",self,label = "Remove Lockdown Role")]
         ]
 

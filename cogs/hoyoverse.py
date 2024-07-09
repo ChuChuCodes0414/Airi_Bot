@@ -93,7 +93,7 @@ class Hoyoverse(commands.Cog):
     async def claim_daily(self):
         print("Claiming hoyoverse dailies...")
         accounts = self.client.db.user_data.find({"$or":[{"hoyoverse.settings.autoclaim":True},{"hoyoverse.settings.hautoclaim":True},{"hoyoverse.settings.hsautoclaim":True}]},{"hoyoverse":1})
-        success,error,hsuccess,herror,hssuccess,hserror,dmsuccess,dmerror = 0,0,0,0,0,0,0,0
+        success,error,hsuccess,herror,hssuccess,hserror,zzzsuccess,zzzerror,dmsuccess,dmerror = 0,0,0,0,0,0,0,0,0,0
         captchas,captchaf = 0,0
         for account in accounts:
             hoyosettings = account.get("hoyoverse",{}).get("settings",{})
@@ -170,8 +170,25 @@ class Hoyoverse(commands.Cog):
                     except Exception as e:
                         hserror += 1
                         print(f"Error for {account['_id']}: {e}")
-                        emessage += "- A error occured while claiming your Honkai: Star Rail daily rewards. You can try claiming manually through </honkaistarrail daily claim:1101694558842126426> or through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin-bh3/index.html?act_id=e202110291205111).\n"
+                        emessage += "- A error occured while claiming your Honkai: Star Rail daily rewards. You can try claiming manually through </honkaistarrail daily claim:1101694558842126426> or through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin/hkrpg/index.html?act_id=e202303301540311).\n"
                     await asyncio.sleep(10)
+                if hoyosettings.get("zzzautoclaim"):
+                    try:
+                        await client.claim_daily_reward(game = genshin.Game.ZZZ)
+                        zzzsuccess += 1
+                    except genshin.GeetestTriggered as e:
+                        zzzerror += 1
+                        print(f"Geetest triggered for Zenless: {account['_id']}")
+                        emessage += "- A Geetest Captcha was triggered while trying to claim your Zenless Zone Zero daily rewards! Please claim your rewards manually through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091)\n"
+                    except genshin.InvalidCookies as e:
+                        zzzerror += 1
+                        print(f"Invalid cookies triggered for Zenless: {account['_id']}")
+                        emessage += "- Your cookies are invalid, and thus your Zenless Zone Zero daily rewards could not be claimed. Please refresh your data through </hoyolab link:999438437906124835>, and re-enable auto claim.\n"
+                        self.client.db.user_data.update_one({"_id":int(account['_id'])},{"$unset":{"hoyoverse.settings.zzzautoclaim":""}})
+                    except Exception as e:
+                        zzzerror += 1
+                        print(f"Error for {account['_id']}: {e}")
+                        emessage += "- A error occured while claiming your Zenless Zone Zero daily rewards. You can try claiming manually through </honkaistarrail daily claim:1101694558842126426> or through the [HoYoLab Website](https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091).\n"
                 if len(emessage) > 0:
                     try:
                         user = await self.client.fetch_user(int(account['_id']))
@@ -190,6 +207,7 @@ class Hoyoverse(commands.Cog):
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
         embed.add_field(name = "<:honkaistarrailicon:1101673399996121178> Honkai: Star Rail Claims",value = f"Successful Claims: `{hssuccess}`\nFailed Claims: `{hserror}`")
+        embed.add_field(name = "<:zenless:1259288287588122644> Zenless Zero Claims (Beta)",value = f"Successful Claims: `{zzzsuccess}`\nFailed Claims: `{zzzerror}`")
         #embed.add_field(name = "<:geetestcringe:1138946483031379988> Geetest Triggers",value = f"Successful Solves: {captchas}\nFailed Solves: {captchaf}\nTotal Cost: ${(captchas+captchaf)*0.003} USD",inline = False)
         embed.timestamp = datetime.datetime.utcnow()
         channel = self.client.get_channel(int(1002939673120870401))
@@ -326,6 +344,13 @@ class Hoyoverse(commands.Cog):
         if not uid:
             raise errors.NotSetupError(message = "The Honkai: Star Rail UID for this user is not setup!\nIf you are this user, try </hoyolab settings:999438437906124835>")
         return uid
+    
+    async def pull_zzzuid(self,user):
+        raw = self.client.db.user_data.find_one({"_id":user.id},{"hoyoverse.settings.zzzuid"})
+        uid = methods.query(data = raw, search = ["hoyoverse","settings","zzzuid"])
+        if not uid:
+            raise errors.NotSetupError(message = "The Zenless Zone Zero UID for this user is not setup!\nIf you are this user, try </hoyolab settings:999438437906124835>")
+        return uid
 
     @commands.hybrid_group(extras = {"id": "500"},help = "The command group to manage your account details.")
     async def hoyolab(self,ctx):
@@ -402,6 +427,8 @@ class Hoyoverse(commands.Cog):
                     embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Impact 3rd",value = f"UID: {account.uid}\nLevel: {account.level}\nNickname: {account.nickname}\nServer: {account.server_name}")
                 if "hkrpg" in account.game_biz:
                     embed.add_field(name = "<:honkaistarrailicon:1101673399996121178> Honkai: Star Rail",value = f"UID: {account.uid}\nTrailblaze Level: {account.level}\nNickname: {account.nickname}\nServer: {account.server_name}")
+                if "nap" in account.game_biz:
+                    embed.add_field(name = "<:zenless:1259288287588122644> Zenless Zone Zero", value = f"UID: {account.uid}\nInter-knot Level: {account.level}\nNickname: {account.nickname}\nServer: {account.server_name}")
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
 
@@ -634,7 +661,7 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @genshin.group(extras = {"id": "513"}, help = "View monthly diary information.")
+    @genshin.command(extras = {"id": "513"}, help = "View monthly diary information.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.", month = "The numerical month to pull information for.")
     async def diary(self,ctx,month: commands.Range[int,1,12] = None,member:discord.Member = None):
@@ -1638,6 +1665,82 @@ class Hoyoverse(commands.Cog):
         view = WarpView(ctx,stats,member,embed)
         message = await ctx.reply(embed = embed,view = view)
         view.message = message
+    
+    @commands.hybrid_group(extras = {"id": "545"},help = "The command group to manage Zenless Zone Zero information.")
+    async def zenless(self,ctx):
+        if ctx.invoked_subcommand is None:
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `zenless` to get a list of commands.")
+    
+    @zenless.command(extras = {"id": "546"},name = "realtimenotes",aliases = ['rtn'], help = "Get real-time notes information like battery charge.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to check information for.")
+    async def zzzrealtimenotes(self,ctx,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            uid = await self.pull_zzzuid(member)
+            data = await client.get_zzz_notes(uid)
+            now = discord.utils.utcnow()
+            nowunix = int(now.replace(tzinfo=datetime.timezone.utc).timestamp())
+            
+            embed = discord.Embed(title = f"Real Time Notes for {member}",description = f"As of <t:{nowunix}:f>\nFor Account UID: `{uid}`",color = discord.Color.random())
+            if data.battery_charge.is_full:
+                embed.add_field(name = "<:batterycharge:1259295700408074272> Battery Charge",value = f"{data.battery_charge.current}/{data.battery_charge.max}\nBattery Charge is currently full!",inline = False)
+            else:
+                batteryunix = int(data.battery_charge.full_datetime.replace(tzinfo=datetime.timezone.utc).timestamp())
+                embed.add_field(name = "<:batterycharge:1259295700408074272> Battery Charge",value = f"{data.battery_charge.current}/{data.battery_charge.max}\nFull Battery Charge <t:{batteryunix}:R>",inline = False)
+            
+            embed.add_field(name = "<a:PB_greentick:865758752379240448> Engagement",value = f"{data.engagement.current}/{data.engagement.max} points",inline = False)
+            embed.add_field(name = "<:scratch:1259298343520178286> Scratch Card Mania",value = f"{'Done' if data.scratch_card_completed else 'Not Done'}",inline = False)
+            embed.add_field(name = "<:videostore:1259299105222688848> Video Store State",value = f"{'Revenue Available' if data.video_store_state == genshin.models.zzz.chronicle.notes.VideoStoreState.REVENUE_AVAILABLE else 'Waiting to Open' if data.video_store_state == genshin.models.zzz.chronicle.notes.VideoStoreState.WAITING_TO_OPEN else 'Currently Open'}",inline = False)
+
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+        await ctx.reply(embed = embed)
+    
+    @zenless.group(extras = {"id": "547"}, name = "daily",help = "Zenless Zone Zero daily check-in management.")
+    async def zenlessdaily(self,ctx):
+        if ctx.invoked_subcommand is None:
+            raise errors.ParsingError(message = "You need to specify a subcommand!\nUse </help:1042263810091778048> and search `zenless daily` to get a list of commands.")
+    
+    @zenlessdaily.command(extras = {"id": "548"},name = "claim",help = "Claim the daily reward for the day.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to claim the daily for.")
+    async def zenlessclaim(self,ctx,member:discord.Member = None):
+        member = member or ctx.author
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            reward = await client.claim_daily_reward(game = genshin.Game.ZZZ)
+            embed = discord.Embed(title = "Claimed daily reward!",description = f"Claimed {reward.amount}x{reward.name}\nRewards have been sent to your account inbox! We also have auto daily claims, check it out with </hoyolab settings:999438437906124835>",color = discord.Color.green())
+            embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
+            embed.set_thumbnail(url = reward.icon)
+        await ctx.reply(embed = embed)
+    
+    @zenlessdaily.command(extras = {"id": "549"},name = "history",help = "Last 30 daily reward history information.")
+    @commands.cooldown(1,30,commands.BucketType.user)
+    @app_commands.describe(member = "The member to check information for.",limit = "The amount of days to pull up inforamtion for.")
+    async def zenlesshistory(self,ctx,limit: commands.Range[int,0] = None,member:discord.Member = None):
+        member = member or ctx.author
+        limit = limit or 30
+        if not await self.privacy_check(ctx,member):
+            raise errors.AccessError(message = "This user has their data set to private!")
+        data = await self.get_cookies(ctx,member) 
+        if not data: return
+        async with ctx.typing():
+            client = genshin.Client(data)
+            data = []
+            async for reward in client.claimed_rewards(limit = limit,game = genshin.Game.ZZZ):
+                data.append(reward)
+            formatter = DailyClaimPageSource(data,self.client)
+            menu = classes.MenuPages(formatter)
+        await menu.start(ctx)
 
 class SettingsView(discord.ui.View):
     def __init__(self,ctx):
@@ -1659,6 +1762,7 @@ class SettingsView(discord.ui.View):
         uid = methods.query(data = data,search = ["hoyoverse","settings","uid"])
         huid = methods.query(data = data,search = ["hoyoverse","settings","huid"])
         hsuid = methods.query(data = data,search = ["hoyoverse","settings","hsuid"])
+        zzzuid = methods.query(data = data,search = ["hoyoverse","settings","zzzuid"])
         privacy = methods.query(data = data,search = ["hoyoverse","settings","privacy"])
         aprivacy = methods.query(data = data,search = ["hoyoverse","settings","aprivacy"])
         autoredeem = methods.query(data = data,search = ["hoyoverse","settings","autoredeem"])
@@ -1671,6 +1775,7 @@ class SettingsView(discord.ui.View):
         embed.add_field(name = "Genshin UID",value = str(uid))
         embed.add_field(name = "Honkai Impact 3rd UID",value = str(huid))
         embed.add_field(name = "Honkai: Star Rail UID",value = str(hsuid))
+        embed.add_field(name = "Zenless Zone Zero UID",value = str(zzzuid))
         embed.add_field(name = "General Privacy",value = "Public" if privacy else "Private")
         embed.add_field(name = "Authkey Privacy",value = "Public" if aprivacy else "Private")
         embed.add_field(name = "Genshin Auto Code Redeem",value = "Enabled" if autoredeem else "Disabled")
@@ -1703,6 +1808,10 @@ class SettingsView(discord.ui.View):
     @discord.ui.button(label = "Honkai: Star Rail UID")
     async def enterhsuid(self,interaction,button):
         await interaction.response.send_modal(EditUID("hoyoverse.settings.hsuid",self))
+    
+    @discord.ui.button(label = "Zenless Zone Zero UID")
+    async def enterzzzuid(self,interaction,button):
+        await interaction.response.send_modal(EditUID("hoyoverse.settings.zzzuid",self))
 
 class PrivateSelect(discord.ui.Select):
     def __init__(self):
@@ -3004,7 +3113,7 @@ class HallView(ui.View):
         purpleback = Image.open("./pillow/staticassets/hspurpleback.png").convert('RGBA')
 
         title_text = f"Forgotten Hall Challenge Summary"
-        star_text = f"{self.data.total_stars}/30"
+        star_text = f"{self.data.total_stars}/36"
         battles_text = f"Battles Fought: {self.data.total_battles}"
         stage_text = f"Stage Progress: {self.data.max_floor}"
         credits_text = f"Mafuyu Bot\ndiscord.gg/9pmGDc8pqQ"
@@ -3049,7 +3158,10 @@ class HallView(ui.View):
                 else:
                     characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
                     characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
-                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if characterimg.width == 112:
+                    resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                else:
+                    resized = characterimg.resize((int(characterimg.width/2.56),int(characterimg.height/2.56)))
                 if character.rarity == 5:
                     copy.paste(goldbackresized,(20+((10+resized.width)*k),currenth+10),goldbackresized)
                 else:
@@ -3071,7 +3183,10 @@ class HallView(ui.View):
                 else:
                     characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
                     characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
-                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if characterimg.width == 112:
+                    resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                else:
+                    resized = characterimg.resize((int(characterimg.width/2.56),int(characterimg.height/2.56)))
                 if character.rarity == 5:
                     copy.paste(goldbackresized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),goldbackresized)
                 else:
@@ -3123,7 +3238,7 @@ class HallSelect(ui.Select):
         purpleback = Image.open("./pillow/staticassets/hspurpleback.png").convert('RGBA')
 
         title_text = f"Forgotten Hall Challenge Summary"
-        star_text = f"{self.data.total_stars}/30"
+        star_text = f"{self.data.total_stars}/36"
         battles_text = f"Battles Fought: {self.data.total_battles}"
         stage_text = f"Stage Progress: {self.data.max_floor}"
         credits_text = f"Mafuyu Bot\ndiscord.gg/9pmGDc8pqQ"
@@ -3168,7 +3283,10 @@ class HallSelect(ui.Select):
                 else:
                     characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
                     characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
-                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if characterimg.width == 112:
+                    resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                else:
+                    resized = characterimg.resize((int(characterimg.width/2.56),int(characterimg.height/2.56)))
                 if character.rarity == 5:
                     copy.paste(goldbackresized,(20+((10+resized.width)*k),currenth+10),goldbackresized)
                 else:
@@ -3190,7 +3308,10 @@ class HallSelect(ui.Select):
                 else:
                     characterimg = Image.open(urlopen(character.icon)).convert('RGBA')
                     characterimg.save(f"./pillow/dynamicassets/{character.icon.split('/')[-1]}")
-                resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                if characterimg.width == 112:
+                    resized = characterimg.resize((int(characterimg.width/1.7),int(characterimg.height/1.7)))
+                else:
+                    resized = characterimg.resize((int(characterimg.width/2.56),int(characterimg.height/2.56)))
                 if character.rarity == 5:
                     copy.paste(goldbackresized,(copy.width-resized.width-20-((10+resized.width)*k),currenth+10),goldbackresized)
                 else:

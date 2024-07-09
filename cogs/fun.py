@@ -86,6 +86,8 @@ class Fun(commands.Cog):
     @commands.cooldown(1, 10,commands.BucketType.user)
     @app_commands.describe(question = "Your important question to ask the 8ball.")
     async def _8ball(self,ctx,*,question):
+        if len(question) > 256:
+            raise errors.ParsingError(message = "Your question cannot be longer than 256 characters!")
         choice = random.choice(self.ball)
         des = f"**The totally magic 8ball says...**\n{choice}"
         if choice == "Yes.":

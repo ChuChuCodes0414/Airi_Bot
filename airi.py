@@ -19,7 +19,6 @@ class Client(commands.Bot):
         self.dbclient = pymongo_client.get_client()
         self.db = self.dbclient.airi_bot
         intents = discord.Intents.default()
-        intents.members = True
         intents.message_content = True
 
         super().__init__(command_prefix = self.get_prefix, intents = intents,activity = discord.Game("/help | @Mafuyu Bot"))

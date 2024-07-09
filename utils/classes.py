@@ -32,6 +32,23 @@ class ConfirmationView(discord.ui.View):
         self.value = False
         self.stop()
 
+class DeleteMessageView(discord.ui.View):
+    def __init__(self,author):
+        super().__init__(timeout = None)
+        self.author = author
+    
+    async def interaction_check(self, interaction):
+        if interaction.user == self.author:
+            return True
+        await interaction.response.send_message(embed = discord.Embed(description = "This menu is not for you!",color = discord.Color.red()),ephemeral = True)
+        return False
+    
+    @discord.ui.button(emoji = "❌",style = discord.ButtonStyle.gray, custom_id="delete_message_view:delete")
+    async def delete(self,interaction:discord.Interaction,button:discord.ui.Button):
+        await interaction.response.defer()
+        await interaction.delete_original_response()
+        self.stop()
+
 class MenuPages(ui.View, menus.MenuPages):
     def __init__(self, source,*,timeout = 60,delete_message_after = False):
         super().__init__(timeout = timeout)

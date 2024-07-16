@@ -208,7 +208,7 @@ class Hoyoverse(commands.Cog):
         embed.add_field(name = "<:genshinicon:976949476784750612> Genshin Claims",value = f"Successful Claims: `{success}`\nFailed Claims: `{error}`")
         embed.add_field(name = "<:honkaiimpacticon:1041877640971288617> Honkai Claims",value = f"Successful Claims: `{hsuccess}`\nFailed Claims: `{herror}`")
         embed.add_field(name = "<:honkaistarrailicon:1101673399996121178> Honkai: Star Rail Claims",value = f"Successful Claims: `{hssuccess}`\nFailed Claims: `{hserror}`")
-        embed.add_field(name = "<:zenless:1259288287588122644> Zenless Zero Claims (Beta)",value = f"Successful Claims: `{zzzsuccess}`\nFailed Claims: `{zzzerror}`")
+        embed.add_field(name = "<:zenless:1259288287588122644> Zenless Zero Claims",value = f"Successful Claims: `{zzzsuccess}`\nFailed Claims: `{zzzerror}`")
         #embed.add_field(name = "<:geetestcringe:1138946483031379988> Geetest Triggers",value = f"Successful Solves: {captchas}\nFailed Solves: {captchaf}\nTotal Cost: ${(captchas+captchaf)*0.003} USD",inline = False)
         embed.timestamp = datetime.datetime.utcnow()
         channel = self.client.get_channel(int(1002939673120870401))
@@ -408,10 +408,10 @@ class Hoyoverse(commands.Cog):
         embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
 
-    @hoyolab.command(extras = {"id": "503"}, help = "Get the accounts linked to your Hoyoverse accounts.")
+    @hoyolab.command(extras = {"id": "503"}, help = "Get the game accounts linked to your Hoyoverse account.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
-    async def accounts(self,ctx,member:discord.Member = None):
+    async def account(self,ctx,member:discord.Member = None):
         member = member or ctx.author
         if not await self.privacy_check(ctx,member):
             raise errors.AccessError(message = "This user has their data set to private!")
@@ -544,7 +544,8 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(enabled = False,extras = {"id": "508"},help = "Redeem a code for yourself or a friend.")
+    '''
+    @genshin.command(enabled = False,extras = {"id": "508"},help = "Redeem a code for yourself or a friend.",disabled=True)
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def redeem(self,ctx,code:str,member:discord.Member = None):
@@ -560,7 +561,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @genshin.command(extras = {"id": "509"},help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
+    @genshin.command(extras = {"id": "509"},help = "As a bot mod, redeem codes for all users who have autoredeem setup.",disabled=True)
     @bot_mod_check()
     @commands.cooldown(1,10,commands.BucketType.user)
     async def massredeem(self,ctx,code:str):
@@ -604,6 +605,8 @@ class Hoyoverse(commands.Cog):
             await message.publish()
         await ctx.reply(embed = discord.Embed(description = f"Successfully auto redeemed `{code}`!",color = discord.Color.green()))
     
+    '''
+        
     @genshin.group(extras = {"id": "510"}, help = "Genshin daily check-in management.")
     async def daily(self,ctx):
         if ctx.invoked_subcommand is None:
@@ -1353,7 +1356,8 @@ class Hoyoverse(commands.Cog):
             menu = classes.MenuPages(formatter)
         await menu.start(ctx)
     
-    @honkaistarrail.command(enabled = False,extras = {"id": "538"},name = "redeem",help = "Redeem a code for yourself or a friend.")
+    '''
+    @honkaistarrail.command(enabled = False,extras = {"id": "538"},name = "redeem",help = "Redeem a code for yourself or a friend.",disabled=True)
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to redeem the code for.",code = "The code to redeem.")
     async def honkaistarredeem(self,ctx,code:str,member:discord.Member = None):
@@ -1369,7 +1373,7 @@ class Hoyoverse(commands.Cog):
             embed.set_footer(icon_url = self.client.user.avatar.url, text = self.client.user.name)
         await ctx.reply(embed = embed)
     
-    @honkaistarrail.command(extras = {"id": "539"},name = "massredeem",help = "As a bot mod, redeem codes for all users who have autoredeem setup.")
+    @honkaistarrail.command(extras = {"id": "539"},name = "massredeem",help = "As a bot mod, redeem codes for all users who have autoredeem setup.",disabled=True)
     @bot_mod_check()
     @commands.cooldown(1,10,commands.BucketType.user)
     @app_commands.describe(code = "The code to redeem.")
@@ -1414,7 +1418,8 @@ class Hoyoverse(commands.Cog):
             message = await channel.send(embed = embed)
             await message.publish()
         await ctx.reply(embed = discord.Embed(description = f"Successfully auto redeemed `{code}`!",color = discord.Color.green()))
-    
+    '''
+        
     @honkaistarrail.command(extras = {"id":"547"},name = "stats",help = "View your player stats like days active and achievements.")
     @commands.cooldown(1,30,commands.BucketType.user)
     @app_commands.describe(member = "The member to check information for.")
@@ -1748,10 +1753,8 @@ class SettingsView(discord.ui.View):
         super().__init__(timeout = 60)
         self.ctx = ctx
         self.message = None
-        self.add_item(PublicSelect())
-        self.add_item(PrivateSelect())
-        self.add_item(EnableSelect())
-        self.add_item(DisableSelect())
+        self.add_item(PrivacySelect())
+        self.add_item(AutoSelect())
     
     async def generate_embed(self,data):
         data = data or {}
@@ -1766,11 +1769,12 @@ class SettingsView(discord.ui.View):
         zzzuid = methods.query(data = data,search = ["hoyoverse","settings","zzzuid"])
         privacy = methods.query(data = data,search = ["hoyoverse","settings","privacy"])
         aprivacy = methods.query(data = data,search = ["hoyoverse","settings","aprivacy"])
-        autoredeem = methods.query(data = data,search = ["hoyoverse","settings","autoredeem"])
+        #autoredeem = methods.query(data = data,search = ["hoyoverse","settings","autoredeem"])
         autoclaim = methods.query(data = data,search = ["hoyoverse","settings","autoclaim"])
         hautoclaim = methods.query(data = data,search = ["hoyoverse","settings","hautoclaim"])
-        hsautoredeem = methods.query(data = data,search = ["hoyoverse","settings","hsautoredeem"])
+        #hsautoredeem = methods.query(data = data,search = ["hoyoverse","settings","hsautoredeem"])
         hsautoclaim = methods.query(data = data,search = ["hoyoverse","settings","hsautoclaim"])
+        zzzautoclaim = methods.query(data = data,search = ["hoyoverse","settings","zzzautoclaim"])
         embed = discord.Embed(title = "Hoyoverse User Settings",description = "To setup cookies, use </hoyolab link:999438437906124835>\nTo setup authkey, use </genshin authkey:999438437906124836> and/or </honkaistarrail authkey:1101694558842126426>",color = discord.Color.random())
         embed.add_field(name = "Cookies Type",value = cookies)
         embed.add_field(name = "Genshin UID",value = str(uid))
@@ -1779,12 +1783,13 @@ class SettingsView(discord.ui.View):
         embed.add_field(name = "Zenless Zone Zero UID",value = str(zzzuid))
         embed.add_field(name = "General Privacy",value = "Public" if privacy else "Private")
         embed.add_field(name = "Authkey Privacy",value = "Public" if aprivacy else "Private")
-        embed.add_field(name = "Genshin Auto Code Redeem",value = "Enabled" if autoredeem else "Disabled")
+        #embed.add_field(name = "Genshin Auto Code Redeem",value = "Enabled" if autoredeem else "Disabled")
         embed.add_field(name = "Genshin Auto Daily Claim",value = "Enabled" if autoclaim else "Disabled")
         embed.add_field(name = "Honkai Impact 3rd Auto Daily Claim",value = "Enabled" if hautoclaim else "Disabled")
-        embed.add_field(name = "Honkai: Star Rail Auto Code Redeem",value = "Enabled" if hsautoredeem else "Disabled")
+        #embed.add_field(name = "Honkai: Star Rail Auto Code Redeem",value = "Enabled" if hsautoredeem else "Disabled")
         embed.add_field(name = "Honkai: Star Rail Auto Daily Claim",value = "Enabled" if hsautoclaim else "Disabled")
-        embed.set_footer(text = "Use the dropdowns to configure settings. | You can see your linked account ids with /hoyolab accounts")
+        embed.add_field(name = "Zenless Zone Zero Auto Daily Claim",value = "Enabled" if zzzautoclaim else "Disabled")
+        embed.set_footer(text = "Use the dropdowns to configure settings. | You can see your linked game accounts with /hoyolab accounts")
         return embed
     
     async def on_timeout(self):
@@ -1814,63 +1819,35 @@ class SettingsView(discord.ui.View):
     async def enterzzzuid(self,interaction,button):
         await interaction.response.send_modal(EditUID("hoyoverse.settings.zzzuid",self))
 
-class PrivateSelect(discord.ui.Select):
+class PrivacySelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label = "General Privacy",description = "Sets normal data to private.",value = "hoyoverse.settings.privacy"),
-            discord.SelectOption(label = "Authkey Privacy",description = "Sets your wishing data and transaction data to private.",value = "hoyoverse.settings.aprivacy")
+            discord.SelectOption(label = "General Privacy",description = "Sets visibility of most commands, like abyss or real time notes.",value = "hoyoverse.settings.privacy"),
+            discord.SelectOption(label = "Authkey Privacy",description = "Sets your wishing/transaction data visibility.",value = "hoyoverse.settings.aprivacy")
         ]
-        super().__init__(placeholder = "Set Privacies to Private",options = options)
+        super().__init__(placeholder = "Toggle Privacies",options = options)
     
     async def callback(self,interaction):
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{self.values[0]:False}},upsert = True)
+        interaction.client.db.user_data.update_one({"_id":interaction.user.id},[{"$set":{self.values[0]:{"$eq":[False,f"${self.values[0]}"]}}}],upsert = True)
         embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
         await interaction.response.edit_message(embed = embed)
 
-class PublicSelect(discord.ui.Select):
+class AutoSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label = "General Privacy",description = "Sets normal data to public.",value = "hoyoverse.settings.privacy"),
-            discord.SelectOption(label = "Authkey Privacy",description = "Sets your wishing data and transaction data to public.",value = "hoyoverse.settings.aprivacy")
-        ]
-        super().__init__(placeholder = "Set Privacies to Public",options = options)
-    
-    async def callback(self,interaction):
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{self.values[0]:True}},upsert = True)
-        embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
-        await interaction.response.edit_message(embed = embed)
-
-class EnableSelect(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label = "Genshin Auto Code Redeem",description = "Redeems Genshin redemption codes automatically.",value = "hoyoverse.settings.autoredeem"),
+            #discord.SelectOption(label = "Genshin Auto Code Redeem",description = "Redeems Genshin redemption codes automatically.",value = "hoyoverse.settings.autoredeem"),
             discord.SelectOption(label = "Genshin Daily Claim",description = "Claim the HoYoLab check-in rewards automatically.",value = "hoyoverse.settings.autoclaim"),
             discord.SelectOption(label = "Honkai Impact 3rd Daily Claim",description = "Claim the HoYoLab check-in rewards automatically.",value = "hoyoverse.settings.hautoclaim"),
-            discord.SelectOption(label = "Honkai: Star Rail Auto Code Redeem",description = "Redeems Honkai: Star Rail redemption codes automatically.",value = "hoyoverse.settings.hsautoredeem"),
-            discord.SelectOption(label = "Honkai: Star Rail Daily Claim",description = "Claim the HoYoLab check-in rewards automatically.",value = "hoyoverse.settings.hsautoclaim")
+            #discord.SelectOption(label = "Honkai: Star Rail Auto Code Redeem",description = "Redeems Honkai: Star Rail redemption codes automatically.",value = "hoyoverse.settings.hsautoredeem"),
+            discord.SelectOption(label = "Honkai: Star Rail Daily Claim",description = "Claim the HoYoLab check-in rewards automatically.",value = "hoyoverse.settings.hsautoclaim"),
+            discord.SelectOption(label = "Zenless Zone Zero Daily Claim",description = "Claim the HoYoLab check-in rewards automatically.",value = "hoyoverse.settings.zzzautoclaim"),
         ]
-        super().__init__(placeholder = "Enable Auto Features",options = options)
+        super().__init__(placeholder = "Toggle Auto Features",options = options)
     
     async def callback(self,interaction):
         if not methods.query(data = interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings.ltuid":1}) or {},search = ["hoyoverse","settings","ltuid"]) and not methods.query(data = interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings.ltuid2":1}) or {},search = ["hoyoverse","settings","ltuid2"]):
             return await interaction.response.send_message(embed = discord.Embed(description = "You need to setup your cookie data first!\n</hoyolab link:999438437906124835> to get started.",color = discord.Color.red()),ephemeral = True)
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{self.values[0]:True}},upsert = True)
-        embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
-        await interaction.response.edit_message(embed = embed)
-
-class DisableSelect(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label = "Genshin Auto Code Redeem",description = "Disable automatic Genshin redemption codes.",value = "hoyoverse.settings.autoredeem"),
-            discord.SelectOption(label = "Genshin Daily Claim",description = "Disable automatic HoYoLab check-in rewards.",value = "hoyoverse.settings.autoclaim"),
-            discord.SelectOption(label = "Honkai Impact 3rd Daily Claim",description = "Disable automatic HoYoLab check-in rewards.",value = "hoyoverse.settings.hautoclaim"),
-            discord.SelectOption(label = "Honkai: Star Rail Auto Code Redeem",description = "Disable automatic Honkai: Star Rail redemption codes.",value = "hoyoverse.settings.hsautoredeem"),
-            discord.SelectOption(label = "Honkai: Star Rail Daily Claim",description = "Disable automatic HoYoLab check-in rewards.",value = "hoyoverse.settings.hsautoclaim")
-        ]
-        super().__init__(placeholder = "Disable Auto Features",options = options)
-    
-    async def callback(self,interaction):
-        interaction.client.db.user_data.update_one({"_id":interaction.user.id},{"$set":{self.values[0]:False}},upsert = True)
+        interaction.client.db.user_data.update_one({"_id":interaction.user.id},[{"$set":{self.values[0]:{"$eq":[False,f"${self.values[0]}"]}}}],upsert = True)
         embed = await self.view.generate_embed(interaction.client.db.user_data.find_one({"_id":interaction.user.id},{"hoyoverse.settings":1}))
         await interaction.response.edit_message(embed = embed)
 
